@@ -61,9 +61,11 @@ async function publish() {
     const output = run('npm', ['publish', path.join(dist, manifest.filename), '--access', 'public', '--tag', pkg.version.includes('-') ? 'next' : 'latest', '--provenance']);
     console.log(output);
   }
-  // Wait briefly for the registry to expose the immutable version and its provenance.
-  for (let i = 0; i < 12; i++) {
+  // New packages can remain in npm's processing queue for several minutes after upload.
+  console.log('Waiting for npm processing, immutable version and provenance');
+  for (let i = 0; i < 60; i++) {
     const remote = await registryVersion();
+    if (remote && remote.dist?.integrity !== manifest.integrity) throw Error('Registry integrity differs from the uploaded artifact');
     if (remote?.dist?.integrity === manifest.integrity && remote.dist.attestations?.url) return;
     await new Promise(resolve => setTimeout(resolve, 5000));
   }

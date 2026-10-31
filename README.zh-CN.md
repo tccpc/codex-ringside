@@ -163,6 +163,20 @@ npx codex-ringside@latest install
 - **切换有延迟**：切换桌面空间后，壁纸最多 60 秒才更新；拖动窗口时壁纸有轻微跟随延迟。
 - **页面自动适配**：内容区里方角、无边框、占满区域的不透明层会被当作页面背景清除，设置页这类圆角卡片变成半透明磨砂，文字依然清楚。终端、代码块和内嵌网页不处理。设计不同的页面可能漏掉，这时自带背景的地方保持原样。
 
+### 壁纸网站推荐
+
+可以从这些网站挑选背景图片：
+
+| 网站 | 推荐内容 |
+|---|---|
+| [Wallhaven](https://wallhaven.cc/) | 综合壁纸图库，可按关键词、分辨率和宽高比筛选 |
+| [WallpaperHub](https://www.wallpaperhub.app/) | Windows、Surface 和 Fluent Design 风格壁纸，提供多种设备尺寸 |
+| [Peapix](https://peapix.com/) | Bing 每日壁纸与 Windows Spotlight 图片，适合寻找风景、建筑和自然摄影 |
+| [Unsplash](https://unsplash.com/wallpapers) | 摄影类高清壁纸，涵盖自然、旅行、动物等主题 |
+| [Pexels](https://www.pexels.com/search/desktop%20wallpaper/) | 摄影图库，提供桌面、4K 和深色壁纸等分类 |
+
+下载图片到本机后，点击侧栏圆环，在设置面板中选择 `image` 图片来源并选取文件。也可以先将图片设为 macOS 桌面壁纸，再选择 `wallpaper` 壁纸来源，让背景与桌面对齐。
+
 ## 查看状态
 
 下载失败或 SHA-256 校验失败时，安装器会在更改现有安装前停止，可在网络恢复后重试。发行版缺少安装包时，请选择 0.2.0 或更高版本。通过一键入口安装后，无需检查系统 Node 或编译工具。

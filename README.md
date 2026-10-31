@@ -132,6 +132,20 @@ Options without a source keep the current source. `background` without arguments
 - Background cleanup uses host DOM heuristics. Terminals, code blocks, canvases and embedded web content are left alone; an unfamiliar page may retain opaque areas.
 - Host updates can break rate-limit reading, placement or theme integration. Disable the background or uninstall if problems arise.
 
+### Recommended wallpaper sites
+
+Find a background image on these sites:
+
+| Site | Highlights |
+| --- | --- |
+| [Wallhaven](https://wallhaven.cc/) | A broad wallpaper collection with keyword, resolution and aspect-ratio filters |
+| [WallpaperHub](https://www.wallpaperhub.app/) | Windows, Surface and Fluent Design wallpapers in sizes for different devices |
+| [Peapix](https://peapix.com/) | Bing daily wallpapers and Windows Spotlight images, including landscapes, architecture and nature photography |
+| [Unsplash](https://unsplash.com/wallpapers) | HD photography wallpapers covering nature, travel, animals and more |
+| [Pexels](https://www.pexels.com/search/desktop%20wallpaper/) | A photography library with desktop, 4K and dark wallpaper categories |
+
+Download an image to your Mac, click a sidebar ring, then choose the `image` source and select the file. You can also set it as your macOS desktop wallpaper and choose the `wallpaper` source to align the background with your desktop.
+
 ## Status and troubleshooting
 
 ```bash

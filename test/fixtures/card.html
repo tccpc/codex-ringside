@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Card Fixture</title>
+<link rel="modulepreload" href="assets/app-shared-fixture.js">
+<style>
+  html { --color-surface: #fff; }
+  html.dark { --color-surface: #1c1d1c; }
+  html, body { margin: 0; height: 100%; }
+  body { background: #f7f7f5; font: 13px -apple-system, sans-serif; color: #333; }
+  html.dark body { background: #181918; color: #ddd; }
+  [data-app-shell-page-surface] { display: flex; height: 100%; background: #f5f5f5d9; }
+  html.dark [data-app-shell-page-surface] { background: #222322d9; }
+  [data-sidebar-navigation-root] { width: 160px; padding: 20px; box-sizing: border-box; background: #ffffffa6; }
+  html.dark [data-sidebar-navigation-root] { background: #2a2b2aa6; }
+  [data-app-shell-main-surface] { position: relative; flex: 1; background: var(--color-surface); }
+  .settings-page { position: absolute; inset: 0; box-sizing: border-box; padding: 32px; background: var(--color-surface); }
+  .settings-card { height: 70%; padding: 16px; border: 1px solid #0002; border-radius: 20px; }
+  nav[data-app-navigation-rail] {
+    width: 52px; height: 100%; box-sizing: border-box; padding: 10px 0; display: flex; flex-direction: column;
+    align-items: center; position: relative;
+  }
+  .items { flex: 1; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .item, .footer span { width: 28px; height: 28px; border-radius: 8px; background: #0000001a; display: block; }
+  html.dark .item, html.dark .footer span { background: #ffffff1a; }
+  .footer { display: flex; flex-direction: column; gap: 8px; }
+  main { padding: 20px; }
+  main button { margin: 2px; }
+</style>
+</head>
+<body>
+<div data-app-shell-page-surface>
+  <nav data-app-navigation-rail>
+    <div class="items"><div class="item"></div><div class="item"></div><div class="item"></div></div>
+    <div class="footer"><span></span><span></span></div>
+  </nav>
+  <div data-sidebar-navigation-root>侧栏</div>
+  <main data-app-shell-main-surface>
+    <p>模拟的 Codex 侧栏。把鼠标移到圆环上看提示，点圆环打开背景面板。</p>
+    <div id="states"></div>
+    <div id="backgrounds"></div>
+    <p><button id="theme">切换明暗</button> <button id="opaque">切换 electron-opaque</button> <button id="settings">切换设置页</button></p>
+  </main>
+</div>
+<script src="../../src/card.js"></script>
+<script src="../../src/background.js"></script>
+<script>
+  installCodexRingsideCard();
+  installCodexRingsideBackground();
+  const week = { label: '周', name: '每周额度', resetsAt: '11/5 07:54' };
+  const five = { label: '5小时', name: '5 小时额度', resetsAt: '10/31 18:20' };
+  const fresh = { message: null, stale: false, updatedAt: Date.now() };
+  const states = {
+    loading: { rings: [], message: '正在读取 Codex 剩余额度', updatedAt: null },
+    single: { ...fresh, rings: [{ ...week, percent: 55, tone: 'normal' }], note: '重置卡：1 张可用' },
+    dual: { ...fresh, rings: [{ ...five, percent: 80, tone: 'normal' }, { ...week, percent: 42, tone: 'warning' }] },
+    low: { ...fresh, rings: [{ ...five, percent: 6, tone: 'danger' }, { ...week, percent: 100, tone: 'normal' }] },
+    empty: { ...fresh, rings: [{ ...five, percent: 0, tone: 'danger' }] },
+    unavailable: {
+      rings: [{ ...five, percent: null, tone: 'muted', resetsAt: null }, { ...week, percent: null, tone: 'muted', resetsAt: null }],
+      message: '暂时无法读取 Codex 剩余额度，正在重试', stale: true
+    }
+  };
+  window.setState = name => window.__codexRingsideCard.update({ note: null, ...states[name] });
+  for (const name of Object.keys(states)) {
+    const button = document.createElement('button');
+    button.textContent = name;
+    button.onclick = () => window.setState(name);
+    document.getElementById('states').append(button);
+  }
+  document.getElementById('theme').onclick = () => document.documentElement.classList.toggle('dark');
+  document.getElementById('opaque').onclick = () => document.documentElement.classList.toggle('electron-opaque');
+  document.getElementById('settings').onclick = () => {
+    const page = document.querySelector('.settings-page');
+    if (page) page.remove();
+    else document.querySelector('main').insertAdjacentHTML('beforeend', '<div class="settings-page"><div class="settings-card" style="background-color: var(--color-background-panel, var(--color-surface))">设置卡片</div></div>');
+  };
+  window.setState('dual');
+
+  // Stands in for the agent: paints two pictures and answers the panel the way agent.cjs does.
+  const paint = (width, height, from, to) => {
+    const canvas = Object.assign(document.createElement('canvas'), { width, height });
+    const context = canvas.getContext('2d');
+    const gradient = context.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, from);
+    gradient.addColorStop(1, to);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = '#fff';
+    context.beginPath();
+    context.arc(width / 2, height * 0.25, width * 0.2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#ffffff80';
+    for (let y = 100; y < height; y += 200) context.fillRect(0, y, width, 4);
+    return canvas.toDataURL('image/jpeg').split(',')[1];
+  };
+  const pictures = { wall: paint(1600, 900, '#0b5fa5', '#7b2ff7'), photo: paint(900, 1600, '#f97316', '#10b981') };
+  window.electronBridge = { getPathForFile: file => file.name };
+  let background = {
+    source: 'default', image: null, transparency: 45, blur: 0, layout: 'cover', zoom: 100, x: 50, y: 30,
+    crop: null, brightness: 100, contrast: 100, saturation: 100
+  };
+  window.setBackground = async changes => {
+    background = { ...background, ...changes };
+    const { source } = background;
+    for (const [id, base64] of Object.entries(pictures)) await window.__codexRingsideBackground.addImage(id, base64);
+    window.__codexRingsideBackground.apply({
+      key: JSON.stringify(background), config: background, error: null,
+      image: source === 'image' ? 'photo' : null,
+      screens: source === 'wallpaper' || source === 'glass' ? [{ x: 0, y: 0, width: screen.width, height: screen.height, image: 'wall' }] : []
+    });
+  };
+  window.__codexRingsideSend = text => window.setBackground(JSON.parse(text));
+  for (const source of ['default', 'image', 'wallpaper', 'glass']) {
+    const button = document.createElement('button');
+    button.textContent = source;
+    button.onclick = () => window.setBackground({ source, image: source === 'image' ? 'fixture.png' : background.image });
+    document.getElementById('backgrounds').append(button);
+  }
+  window.setBackground({});
+</script>
+</body>
+</html>

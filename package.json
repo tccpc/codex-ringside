@@ -1,0 +1,55 @@
+{
+  "name": "codex-ringside",
+  "version": "0.1.0-rc.0",
+  "description": "Usage rings and customizable backgrounds for the Codex desktop app. Unofficial macOS add-on.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "codex-ringside": "bin/codex-ringside.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "os": [
+    "darwin"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "install-agent": "node bin/codex-ringside.cjs install",
+    "uninstall-agent": "node bin/codex-ringside.cjs uninstall",
+    "status": "node bin/codex-ringside.cjs status",
+    "check": "node scripts/check.cjs",
+    "check:package": "node scripts/check-package.cjs",
+    "verify": "npm run check && npm test && npm run check:package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tccpc/codex-ringside.git"
+  },
+  "homepage": "https://github.com/tccpc/codex-ringside#readme",
+  "bugs": {
+    "url": "https://github.com/tccpc/codex-ringside/issues"
+  },
+  "author": "tccpc",
+  "keywords": [
+    "codex",
+    "macos",
+    "usage",
+    "sidebar",
+    "background"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "bin/*.cjs",
+    "src/**/*.cjs",
+    "src/**/*.js",
+    "native/bridge.swift",
+    "README*.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md"
+  ]
+}

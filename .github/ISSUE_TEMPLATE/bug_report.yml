@@ -1,0 +1,22 @@
+name: Bug report / 问题反馈
+description: Report an installation, usage-ring or background problem.
+body:
+  - type: markdown
+    attributes:
+      value: 'For security vulnerabilities, use the private security reporting link instead. Remove account details, chat IDs, image paths and other private information from logs and screenshots.'
+  - type: textarea
+    attributes:
+      label: What happened? / 问题描述
+      description: Include steps to reproduce and expected behavior.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Versions / 版本
+      description: Ringside, macOS, Node.js and desktop app versions; Apple Silicon or Intel.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Redacted diagnostics / 脱敏诊断
+      description: Relevant status fields or errors. Read SECURITY.md before sharing output.

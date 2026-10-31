@@ -1,0 +1,16 @@
+node_modules/
+.DS_Store
+.env
+.env.*
+.npmrc
+*.log
+*.tgz
+dist/
+coverage/
+.claude/
+.codex/
+.idea/
+.vscode/
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo

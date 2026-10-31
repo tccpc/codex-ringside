@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0
+
+First stable public release. Includes all candidate features, with verified Codex Plus migration, preserved backgrounds and a single active renderer component on the development Mac.
+
+Validation: 85 tests; Node.js 22, 24 and 26 on Apple Silicon; Node.js 24 on Intel; Swift compiled from the published package contents on both architectures. Official publishing uses GitHub Actions OIDC with provenance and matching release checksums.
+
 ## 0.1.0-rc.0
 
 First public candidate of Codex Ringside, formerly the local Codex Plus project.

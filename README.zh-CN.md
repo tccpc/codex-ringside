@@ -21,6 +21,34 @@
 
 需要 macOS、Node.js 22+ 和 Xcode Command Line Tools（`xcode-select --install`），以及已登录的兼容桌面客户端。开发与真机验证使用 `/Applications/ChatGPT.app`，版本 `26.1027.30824`。其他客户端版本依赖相同内部结构，未逐一验证。
 
+### 方式一：让 AI 帮你安装
+
+把下面整段提示词复制给能在你的 Mac 上运行终端命令的 AI 助手，让它完成环境检查、安装和结果验证。遇到 macOS 授权弹窗或客户端登录时，由你本人完成操作。
+
+```text
+请帮我在这台 Mac 上安装 Codex Ringside，项目地址：https://github.com/tccpc/codex-ringside
+
+先阅读仓库的 README，简要说明安装内容和本机调试端口的用途。
+检查 macOS、Node.js 22+、Xcode Command Line Tools，以及已登录的兼容桌面客户端。
+如果不是 macOS，请说明不支持并停止安装。
+缺少依赖时协助补齐，需要我处理系统弹窗时再提示我。
+
+从官方 npm 源安装：
+npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest install
+
+保留已有的 Ringside 或 Codex Plus 设置；
+如果兼容桌面应用不在默认位置，用 CODEX_RINGSIDE_APP 指定检测到的应用路径。
+
+安装后运行：
+npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest status
+
+告诉我后台是否正常运行、侧栏圆环是否已显示，并给出卸载命令。
+圆环尚未显示时，解释当前状态，提醒我保存工作后手动重开客户端；
+不要主动关闭或强制结束我正在使用的客户端。
+```
+
+### 方式二：终端安装
+
 以下命令显式安装后台任务；仅下载 npm 包不会安装或启动后台。命令行和设置面板目前使用中文。
 
 ```bash

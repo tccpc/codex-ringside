@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Add copyable English and Chinese AI installation prompts to the README, covering prerequisites, installation, existing settings and status verification.
+- Present AI-assisted and terminal installation as separate options. Runtime behavior is unchanged.
+
 ## 0.1.0
 
 First stable public release. Includes all candidate features, with verified Codex Plus migration, preserved backgrounds and a single active renderer component on the development Mac.

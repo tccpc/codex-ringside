@@ -14,6 +14,34 @@ See your remaining allowance at a glance, hover for reset times, and click a rin
 
 Requirements: macOS, Node.js 22+, Xcode Command Line Tools (`xcode-select --install`), and a signed-in compatible desktop client. The development host is `/Applications/ChatGPT.app`, version `26.1027.30824`, on Apple Silicon. Other host versions depend on compatible internal interfaces and are not individually verified. The CLI and settings panel currently use Chinese labels.
 
+### Option 1: Ask an AI assistant
+
+Copy the prompt below into an AI assistant that can run commands on your Mac. The assistant can check prerequisites, install Ringside and verify the result. Complete any macOS authorization or host sign-in prompts yourself when needed.
+
+```text
+Please install Codex Ringside on my Mac: https://github.com/tccpc/codex-ringside
+
+Read the repository's README first and briefly explain what will be installed, including the local debug port.
+Check macOS, Node.js 22+, Xcode Command Line Tools and a compatible signed-in desktop client.
+If this is not macOS, explain that it is unsupported and stop.
+Help resolve missing prerequisites, and tell me when a system dialog needs my input.
+
+Install from the official npm registry:
+npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest install
+
+Preserve existing Ringside or Codex Plus settings.
+If the compatible desktop app is outside the default location, use CODEX_RINGSIDE_APP to specify the detected path.
+
+After installation, run:
+npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest status
+
+Report whether the background agent is running and the usage ring is placed, then give me the uninstall command.
+If the ring is not visible yet, explain the status and tell me to save my work and reopen the client manually.
+Do not close or force-quit the client I am using.
+```
+
+### Option 2: Install from the terminal
+
 ```bash
 npx codex-ringside@latest install
 ```

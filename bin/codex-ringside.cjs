@@ -7,6 +7,7 @@ const { BackgroundStore, parseBackgroundArgs } = require('../src/background.cjs'
 const { CDP_PORT, CdpSession, isMainWindow, listTargets } = require('../src/cdp.cjs');
 const launchd = require('../src/launchd.cjs');
 const installer = require('../src/install.cjs');
+const updater = require('../src/update.cjs');
 const { version } = require('../package.json');
 
 const { installDir } = launchd.paths;
@@ -28,6 +29,7 @@ async function install({ observe }) {
     ? '如果圆环还没出现：保存工作后用 ⌘Q 退出 Codex，再点原图标打开。'
     : '当前为观察模式：不会重启 Codex。');
   console.log(`原安装备份：${result.backup}`);
+  console.log(result.settings.autoUpdate ? '自动更新已开启，每 6 小时检查正式发行版。' : '自动更新已关闭。');
 }
 
 // Reachable only if Codex is running with the port; without it there is no card to remove.
@@ -86,6 +88,7 @@ async function status() {
   console.log(JSON.stringify({
     agent: job ? job.match(/state = (\S+)/)?.[1] ?? 'loaded' : 'not installed',
     settings: readJson(settingsFile),
+    update: fs.existsSync(settingsFile) ? updater.updateStatus(installDir) : null,
     background: new BackgroundStore({ root: installDir }).config,
     startup: state && { event: state.event, updatedAt: new Date(state.updatedAt).toISOString() },
     listenAddresses: listeners(),
@@ -105,6 +108,23 @@ async function background(args) {
   console.log(`背景来源：${config.source}，5 秒内生效。`);
 }
 
+async function update(args) {
+  if (args.length > 1 || args.some(arg => !['--check', '--enable', '--disable'].includes(arg))) {
+    throw Error('用法：codex-ringside update [--check | --enable | --disable]');
+  }
+  if (args[0] === '--enable' || args[0] === '--disable') {
+    const enabled = args[0] === '--enable';
+    await updater.setAutoUpdate(enabled);
+    console.log(enabled ? '自动更新已开启，后台将在一分钟内检查。' : '自动更新已关闭。');
+    return;
+  }
+  console.log('正在检查 GitHub 正式发行版…');
+  const result = await updater.runUpdate({ checkOnly: args[0] === '--check' });
+  if (result.status === 'updated') console.log(`已更新到 ${result.installedVersion}，后台已重启。`);
+  else if (result.status === 'available') console.log(`发现新版本 ${result.latestVersion}。`);
+  else console.log('当前没有更新的正式版本。');
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === '--version' || command === '-v') { console.log(version); return; }
@@ -116,8 +136,10 @@ async function main() {
   else if (command === 'uninstall') await uninstall();
   else if (command === 'status') await status();
   else if (command === 'background') await background(args);
+  else if (command === 'update') await update(args);
   else {
-    console.log('用法：codex-ringside <install [--observe] | uninstall | status | background [来源] [选项]>');
+    console.log('用法：codex-ringside <install [--observe] | uninstall | status | update [选项] | background [来源] [选项]>');
+    console.log('更新选项：--check 仅检查 | --enable 开启自动更新 | --disable 关闭自动更新；无选项立即更新');
     console.log('背景来源：default | image <图片路径> | wallpaper | glass');
     console.log('背景效果：--transparency <0-100> --blur <0-60>');
     console.log('图片调整：--layout <cover|contain|stretch|center|tile> --zoom <10-400> --x <0-100> --y <0-100>');

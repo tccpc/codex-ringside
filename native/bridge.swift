@@ -155,6 +155,10 @@ func wallpaper() -> [String: Any] {
 }
 
 let args = CommandLine.arguments
+if args.count == 2 && args[1] == "version" {
+    emit(["protocol": 1])
+    exit(0)
+}
 guard args.count >= 3 else { fail("usage: bridge <command> <app> [...]") }
 let command = args[1]
 let appPath = canonical(args[2])

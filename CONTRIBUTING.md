@@ -9,7 +9,7 @@ npm ci --ignore-scripts
 npm run verify
 ```
 
-Tests cover allowance handling, background settings, startup guards and transactional migration using temporary directories and simulated services. Package checks extract the actual tarball, validate its contents, invoke help/version and compile Swift. Tests do not install a real LaunchAgent or restart the desktop client.
+Tests cover allowance handling, background settings, startup guards, transactional migration and automatic updates using temporary directories and simulated services. Update tests cover version ordering, checksum validation, failure retries, concurrent operations and stale-download cancellation. Package checks extract the actual tarball, validate its contents, invoke help/version and compile Swift. Tests do not install a real LaunchAgent or restart the desktop client. For installer changes also run `npm run build:standalone && npm run check:standalone`; this checks installation and the complete verified-update/rollback path using real bundled Node/helpers, a local fake release source and unusable system development tools. Keep the npm source package free of binaries; standalone release assets are built separately.
 
 Use `test/fixtures/card.html` with simulated data. Serve the checkout with `python3 -m http.server 4173 --bind 127.0.0.1`. Renderer scripts must remain self-contained, tolerate repeated injection, and clean up DOM nodes, observers, timers and object URLs on destruction.
 

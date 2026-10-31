@@ -30,6 +30,8 @@ jobs:
           package-manager-cache: false
       - run: npm install --global npm@11.21.1 --ignore-scripts
       - run: npm ci --ignore-scripts
+      - run: node scripts/build-standalone.cjs arm64
+      - run: node scripts/build-standalone.cjs x64
       - run: node scripts/release.cjs prepare
       - run: node scripts/release.cjs publish
       - run: node scripts/release.cjs github

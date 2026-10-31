@@ -12,74 +12,93 @@ See your remaining allowance at a glance, hover for reset times, and click a rin
 
 ## Install
 
-Requirements: macOS, Node.js 22+, Xcode Command Line Tools (`xcode-select --install`), and a signed-in compatible desktop client. The development host is `/Applications/ChatGPT.app`, version `26.1027.30824`, on Apple Silicon. Other host versions depend on compatible internal interfaces and are not individually verified. The CLI and settings panel currently use Chinese labels.
+One-command installation requires **macOS 13+** (Apple Silicon or Intel) and a signed-in compatible desktop client. **You do not need Node.js, npm, Homebrew or Xcode Command Line Tools.** The release includes a private Node runtime and a precompiled helper. The development host is `/Applications/ChatGPT.app`, version `26.1027.30824`; other host versions depend on compatible internal interfaces. CLI and panel labels currently use Chinese.
 
-### Option 1: Ask an AI assistant
+### Option 1: One-command install (recommended)
 
-Copy the prompt below into an AI assistant that can run commands on your Mac. The assistant can check prerequisites, install Ringside and verify the result. Complete any macOS authorization or host sign-in prompts yourself when needed.
+Paste into Terminal:
+
+```bash
+curl -fsSL https://github.com/tccpc/codex-ringside/releases/latest/download/install.sh | /bin/bash
+```
+
+Available starting with release **0.2.0**. The script selects your native architecture (including Apple Silicon terminals running under Rosetta), downloads a release bundle over HTTPS, checks its SHA-256, and installs under your user account. It does not use or change your system Node, shell configuration or Homebrew installation; no `sudo` is required. The background task also uses the private runtime. Installation leaves an already-open desktop session running.
+
+If rings do not appear, save your work, quit the desktop app with ⌘Q, and reopen its original icon. The add-on may reopen a freshly launched client once, subject to the safeguards below.
+
+Observe mode disables that startup handoff:
+
+```bash
+curl -fsSL https://github.com/tccpc/codex-ringside/releases/latest/download/install.sh | /bin/bash -s -- --observe
+```
+
+To inspect the installer before running it, download `install.sh` from [Releases](https://github.com/tccpc/codex-ringside/releases), read it, then run `/bin/bash install.sh`. Use `--version 0.2.0` to select an exact release. To set a custom host path, export it before running the one-command installer:
+
+```bash
+export CODEX_RINGSIDE_APP="/Applications/ChatGPT.app"
+```
+
+After installation, status and uninstall work without npm:
+
+```bash
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" uninstall
+```
+
+### Option 2: Ask an AI assistant
+
+Copy this prompt into an assistant that can run commands on your Mac:
 
 ```text
 Please install Codex Ringside on my Mac: https://github.com/tccpc/codex-ringside
-
-Read the repository's README first and briefly explain what will be installed, including the local debug port.
-Check macOS, Node.js 22+, Xcode Command Line Tools and a compatible signed-in desktop client.
-If this is not macOS, explain that it is unsupported and stop.
-Help resolve missing prerequisites, and tell me when a system dialog needs my input.
-
-Install from the official npm registry:
-npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest install
-
-Preserve existing Ringside or Codex Plus settings.
-If the compatible desktop app is outside the default location, use CODEX_RINGSIDE_APP to specify the detected path.
-
-After installation, run:
-npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest status
-
-Report whether the background agent is running and the usage ring is placed, then give me the uninstall command.
-If the ring is not visible yet, explain the status and tell me to save my work and reopen the client manually.
-Do not close or force-quit the client I am using.
+Read the README and explain what will be installed, including the local debug port.
+Check macOS 13+ and a compatible signed-in desktop client. If unsupported, stop.
+Use the README's one-command installer. It bundles Node and the helper; do not install Homebrew, Node or Xcode tools for this task.
+Preserve existing settings. If the app is outside the default location, export CODEX_RINGSIDE_APP with its detected path.
+After installation, run "$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status.
+Report whether the agent is running and the ring is placed, and give the uninstall command.
+If needed, ask me to save my work and reopen the client manually. Do not close or force-quit it.
 ```
 
-### Option 2: Install from the terminal
+### Option 3: npm / source installation
+
+For developers who already have **Node.js 22+ and Xcode Command Line Tools**:
 
 ```bash
 npx codex-ringside@latest install
 ```
 
-If rings do not appear, save your work, quit the desktop app with ⌘Q, and reopen its original icon. The add-on may reopen a freshly launched client once, subject to the safeguards below.
-
-Observe mode installs the agent without allowing it to restart the desktop client:
-
-```bash
-npx codex-ringside@latest install --observe
-```
-
-You can also use `npm install -g codex-ringside`, then `codex-ringside install`. Downloading the npm package alone never installs or starts the agent: there are no install lifecycle hooks. No `sudo` is needed with npx.
+This path compiles the Swift helper locally. It requires a working system Node; if `npx` crashes with a missing Homebrew dynamic library, use Option 1. Downloading the npm package alone never installs or starts the agent: there are no install lifecycle hooks. npm users can continue using `npx codex-ringside@latest <command>` for status, background settings and uninstall.
 
 | Location | Contents |
 | --- | --- |
-| `~/Library/Application Support/CodexRingside` | Runtime, locally compiled bridge, settings and state |
+| `~/Library/Application Support/CodexRingside` | Program, private Node and its license (one-command install), helper, settings and state |
 | `~/Library/LaunchAgents/com.codexringside.agent.plist` | Background agent |
 | `~/Library/Logs/CodexRingside` | Agent logs |
 | `~/Library/Application Support/CodexRingside Backups` | Local installation/migration backups |
 
-The installed runtime is independent of the checkout. For a custom application path:
-
-```bash
-CODEX_RINGSIDE_APP="/Applications/ChatGPT.app" npx codex-ringside@latest install
-```
-
-Resolution order: `CODEX_RINGSIDE_APP`, legacy `CODEX_PLUS_APP`, saved path, then `/Applications/ChatGPT.app`.
+Host resolution order: `CODEX_RINGSIDE_APP`, legacy `CODEX_PLUS_APP`, saved path, then `/Applications/ChatGPT.app`.
 
 ## Upgrade and migrate from Codex Plus
 
-Run `npx codex-ringside@latest install` again. Existing Ringside settings take precedence. First migration preserves the old application path, observe mode, background settings and images, then retires `com.codexplus.agent`.
+**Automatic updates are enabled by default.** About one minute after the agent starts, it checks the latest stable GitHub Release, then checks every six hours. Check times survive restarts. A newer release is downloaded for the running architecture, verified against its SHA-256 manifest, checked for the expected version/runtime, and installed with its private Node. Drafts, prereleases and downgrades are skipped. Failed checks or installations retry after one hour.
 
-The helper is compiled in a staging directory before services are stopped. Files are backed up before replacement; if the new watcher fails to become ready, the installer restores previous files and service state. A lock prevents overlapping install/uninstall operations. Installation itself does not restart an existing desktop session.
+An independent update job restarts only the Ringside agent, leaving the desktop session open. The app path, observe mode, background, images and update preference are preserved. Files are backed up before replacement; if the new watcher fails to become ready, the installer restores previous files, runtime and service state. Uninstalling, reinstalling or disabling updates during a download cancels that automatic installation. A lock prevents overlapping installation, update replacement and uninstall operations.
+
+```bash
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --check
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --disable
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --enable
+```
+
+These commands update immediately, check only, disable or enable automatic updates. `status` includes an `update` object with the installed/latest versions, preference, check times and last error; timestamps are Unix milliseconds. Update logs are in `~/Library/Logs/CodexRingside/update.log` and `update.err.log`. A version-pinned install still follows future stable releases; disable automatic updates to keep a pinned version or source changes.
+
+Older versions need one manual reinstall to receive this feature. Existing Ringside settings take precedence over Codex Plus settings; first migration preserves the old settings and retires `com.codexplus.agent`.
 
 Backups remain in `CodexRingside Backups/install-*`. `receipt.json` records original paths and service states; `0` contains the previous Ringside installation and `1` the previous Codex Plus installation. Backups can contain private paths and images. Keep them local and remove them manually when satisfied with the upgrade. Uninstall preserves backups.
 
-Reinstalling preserves observe mode; `install --observe` explicitly disables startup handoff. To re-enable it, unload the agent, set `allowClientRestart` to `true` in the installed `settings.json`, then run `install` again.
+Reinstalling preserves observe mode; `--observe` explicitly disables startup handoff. To re-enable it, unload the agent, set `allowClientRestart` to `true` in the installed `settings.json`, then reinstall. npm/source users can use `npx codex-ringside@latest update`; a successful update switches the managed installation to the standalone bundle with private Node, without changing the source checkout. `npx codex-ringside@latest install` continues to require development tools.
 
 ## Background controls
 
@@ -97,10 +116,10 @@ Transparency and blur control the effect. Images support cover, contain, stretch
 The appearance switch uses the host's own system/light/dark setting and synchronizes with its settings page. It is hidden when compatible internal functions cannot be found.
 
 ```bash
-npx codex-ringside@latest background image ~/Pictures/photo.jpg --transparency 50 --blur 8
-npx codex-ringside@latest background --layout contain --zoom 120 --y 20
-npx codex-ringside@latest background --crop 10,0,80,60
-npx codex-ringside@latest background default
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background image ~/Pictures/photo.jpg --transparency 50 --blur 8
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background --layout contain --zoom 120 --y 20
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background --crop 10,0,80,60
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background default
 ```
 
 Options without a source keep the current source. `background` without arguments prints the saved configuration. Crop values are left, top, width and height in percentages; `--crop none` clears the crop. `--help` lists flags and `--version` prints the version; both work without an installed host.
@@ -116,12 +135,12 @@ Options without a source keep the current source. `background` without arguments
 ## Status and troubleshooting
 
 ```bash
-npx codex-ringside@latest status
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
 Look for `agent: "running"`, `cdp.windows[].card.placed`, and `cdp.windows[].background.applied`. `nativeGlass: false` means the host disables native glass. `startup.event` explains skipped handoffs. Status may contain private paths and window URLs; redact it before sharing.
 
-If no ring appears, verify the signed-in host, application path, Node version, Command Line Tools and whether port 39222 is occupied. Installing while the host is open does not trigger a restart. Save your work and reopen its original icon when convenient. Check `~/Library/Logs/CodexRingside` for errors.
+If no ring appears, verify the signed-in host, application path and whether port 39222 is occupied. Node and Command Line Tools checks apply only to npm/source installations. A missing release asset means that version does not contain a standalone bundle; use 0.2.0 or later. A checksum or download failure stops before changing the installed app; retry when the network is available. Installing while the host is open does not trigger a restart. Save your work and reopen its original icon when convenient. Check `~/Library/Logs/CodexRingside` for errors.
 
 Missing or expired allowance data is shown as unavailable. Account switches reset the app-server connection. The number of rings follows the valid allowance windows returned for your account.
 
@@ -134,10 +153,10 @@ An app already running when the agent starts is never handed off. Only normal sy
 ## Uninstall
 
 ```bash
-npx codex-ringside@latest uninstall
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" uninstall
 ```
 
-This removes current and legacy agents, moves runtime/settings/logs to the Trash and removes injected UI. Backups remain. The desktop application bundle is unchanged. The debug port remains active until that desktop process exits; the next ordinary launch has no Ringside debug flag.
+This removes current and legacy agents and the update job, moves the private Node runtime and program/settings/logs to the Trash and removes injected UI. Backups remain. The desktop application bundle is unchanged. The debug port remains active until that desktop process exits; the next ordinary launch has no Ringside debug flag.
 
 ## Security and privacy
 
@@ -145,7 +164,7 @@ Ringside starts the host's bundled `codex app-server`, reads `account/rateLimits
 
 **The debug endpoint has no authentication.** Local software can execute JavaScript in the desktop renderer through it. Never expose, forward or proxy port 39222. Use this add-on only where you trust the other local software.
 
-Ringside does not read project files, chat content or the conversation database, and has no telemetry. It checks only the modification time of `auth.json`. The host CLI makes its own network requests. Wallpaper and chosen image processing is local; images/configuration are not uploaded. See [SECURITY.md](SECURITY.md).
+Ringside does not read project files, chat content or the conversation database, and has no telemetry. It checks only the modification time of `auth.json`. The host CLI makes its own network requests. Automatic updates request the public GitHub release API and assets without account tokens or local settings, paths or images; `update --disable` stops automatic requests. Wallpaper and chosen image processing is local; images/configuration are not uploaded. See [SECURITY.md](SECURITY.md).
 
 ## Development
 
@@ -156,7 +175,7 @@ npm ci --ignore-scripts
 npm run verify
 ```
 
-Verification runs syntax checks, unit tests and tests the actual packed CLI and Swift source. There are no runtime npm dependencies. CI covers Node.js 22/24/26 and compiles on Apple Silicon and Intel macOS. Full host compatibility requires a real signed-in client.
+Development requires Node.js 22+ and Xcode Command Line Tools. Verification runs syntax checks, unit tests and tests the actual packed CLI and Swift source. `npm run build:standalone` builds a native release bundle; `npm run check:standalone` tests its real runtime, helper, installation and rollback with simulated services and unusable system development tools. There are no runtime npm dependencies. CI covers Node.js 22/24/26 and compiles on Apple Silicon and Intel macOS. Full host compatibility requires a real signed-in client.
 
 For the browser-only fixture, run `python3 -m http.server 4173 --bind 127.0.0.1` from the checkout and open `http://127.0.0.1:4173/test/fixtures/card.html`. It uses simulated data and gradient images.
 

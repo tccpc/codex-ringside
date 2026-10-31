@@ -11,7 +11,7 @@ try {
   const names = new Set(pack.files.map(file => file.path));
   const allowed = /^(?:package\.json|README(?:\.zh-CN)?\.md|LICENSE|NOTICE|CHANGELOG\.md|bin\/codex-ringside\.cjs|native\/bridge\.swift|src\/(?:[\w-]+\/)*[\w-]+\.(?:cjs|js))$/;
   for (const name of names) assert.ok(allowed.test(name), `Unexpected published file: ${name}`);
-  for (const name of ['package.json', 'README.md', 'README.zh-CN.md', 'LICENSE', 'NOTICE', 'CHANGELOG.md', 'bin/codex-ringside.cjs', 'native/bridge.swift', 'src/install.cjs', 'src/agent.cjs', 'src/card.js', 'src/background.js', 'src/startup/watch.cjs']) assert.ok(names.has(name), `Missing: ${name}`);
+  for (const name of ['package.json', 'README.md', 'README.zh-CN.md', 'LICENSE', 'NOTICE', 'CHANGELOG.md', 'bin/codex-ringside.cjs', 'native/bridge.swift', 'src/install.cjs', 'src/update.cjs', 'src/agent.cjs', 'src/card.js', 'src/background.js', 'src/startup/watch.cjs']) assert.ok(names.has(name), `Missing: ${name}`);
   execFileSync('tar', ['-xzf', path.join(temp, pack.filename), '-C', temp]);
   const unpacked = path.join(temp, 'package');
   const pkg = JSON.parse(fs.readFileSync(path.join(unpacked, 'package.json'), 'utf8'));

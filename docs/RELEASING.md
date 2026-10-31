@@ -6,7 +6,7 @@ Repository: `tccpc/codex-ringside`. npm package: `codex-ringside`. Tags use `v` 
 
 1. Run `npm ci --ignore-scripts` and `npm run verify`; inspect the package and screenshot. Commit with a GitHub privacy email and push the clean history. Wait for all CI jobs.
 2. Run `npm login --auth-type=web --registry=https://registry.npmjs.org/` and complete authentication in the browser. Never put passwords, tokens or OTPs in source, notes or command arguments.
-3. At version `0.1.0-rc.0`, run `node scripts/release.cjs pack`, then `npm publish dist/codex-ringside-0.1.0-rc.0.tgz --access public --tag next`. This is the verified candidate, not a placeholder package.
+3. At version `0.1.0-rc.0`, run `node scripts/release.cjs pack`, then `npm publish ./dist/codex-ringside-0.1.0-rc.0.tgz --access public --tag next`. This is the verified candidate, not a placeholder package.
 4. Enable account 2FA if needed. Add an npm trusted publisher: GitHub owner `tccpc`, repository `codex-ringside`, workflow filename `release.yml`, no environment name. Explicitly allow direct `npm publish`; stage-only access is insufficient. No npm token is stored in GitHub.
 5. Complete the first trusted publish within two days. Update manifest and lockfile to `0.1.0`, add the changelog entry, verify, commit and push `main`. When CI passes, create and push `v0.1.0`.
 6. The Release workflow verifies the matrix, checks tag/version/main ancestry, packs once, publishes those bytes with provenance, verifies registry integrity and creates the GitHub Release with the same tarball and `SHA256SUMS.txt`.

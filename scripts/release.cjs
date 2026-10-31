@@ -24,12 +24,40 @@ function validateRelease() {
 
 function pack() {
   fs.mkdirSync(dist, { recursive: true });
+  const bundles = ['arm64', 'x64'].map(arch => `codex-ringside-v${pkg.version}-darwin-${arch}.tar.gz`);
+  for (const file of bundles) if (!fs.existsSync(path.join(dist, file))) throw Error(`Build the standalone bundle first: ${file}`);
+  fs.copyFileSync(path.join(root, 'install.sh'), path.join(dist, 'install.sh'));
   const [packed] = JSON.parse(run('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', dist]));
   const bytes = fs.readFileSync(path.join(dist, packed.filename));
   const manifest = { filename: packed.filename, version: pkg.version, integrity: integrity(bytes), sha256: sha256(bytes), commit: run('git', ['rev-parse', 'HEAD']) };
+  manifest.assets = Object.fromEntries([manifest.filename, ...bundles, 'install.sh'].map(file => [file, sha256(fs.readFileSync(path.join(dist, file)))]));
   fs.writeFileSync(path.join(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), `${manifest.sha256}  ${manifest.filename}\n`);
-  fs.writeFileSync(path.join(dist, 'RELEASE_NOTES.md'), `Codex Ringside ${pkg.version}\n\nUnofficial macOS add-on for usage rings and custom backgrounds in the Codex sidebar.\n\nRequires Node.js 22+, Xcode Command Line Tools and a compatible desktop app.\n\n\`\`\`bash\nnpx codex-ringside@${pkg.version} install\nnpx codex-ringside@${pkg.version} status\n\`\`\`\n\nExisting Codex Plus settings are migrated with a local backup. The installer preserves observe mode and rolls back on failure. Save your work before manually reopening the desktop app if the rings do not appear.\n\nThe local debugging port grants local software access to the desktop renderer. Never expose or forward port 39222. Internal host interfaces can change.\n\n中文：侧栏额度圆环与背景设置插件；旧版 Codex Plus 自动迁移并备份。需要 Node.js 22+ 和 Xcode 命令行工具。\n\n[English guide](https://github.com/${repository}#readme) · [中文说明](https://github.com/${repository}/blob/main/README.zh-CN.md) · [Security](https://github.com/${repository}/blob/main/SECURITY.md)\n\nThe attached npm tarball includes readable JavaScript, Swift source and license notices. Verify it with \`shasum -a 256 -c SHA256SUMS.txt\`; install globally with \`npm install -g ./${manifest.filename}\`, then run \`codex-ringside install\`.\n`);
+  fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), Object.entries(manifest.assets).map(([file, sum]) => `${sum}  ${file}\n`).join(''));
+  fs.writeFileSync(path.join(dist, 'RELEASE_NOTES.md'), `Codex Ringside ${pkg.version}
+
+Unofficial macOS add-on for usage rings and custom backgrounds in the Codex sidebar.
+
+One-command install for macOS 13+ (Apple Silicon and Intel). Includes private Node ${require('./node-runtime.json').version} and a precompiled helper; no Node, npm, Homebrew or Xcode tools need to be installed by the user. Requires a compatible signed-in desktop app.
+
+\`\`\`bash
+curl -fsSL https://github.com/${repository}/releases/download/v${pkg.version}/install.sh | /bin/bash -s -- --version ${pkg.version}
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
+\`\`\`
+
+Existing Ringside and Codex Plus settings are preserved with a local backup. Installation checks the release SHA-256, preserves observe mode and rolls back on failure. Save your work before manually reopening the desktop app if the rings do not appear.
+
+Automatic updates are enabled by default. Ringside checks stable GitHub releases every six hours, verifies and installs newer bundles, and restarts its own background agent while the desktop client stays open. Failed updates roll back and retry after one hour. Use \`codex-ringside update\` to update now, \`update --check\` to check, or \`update --disable\` to turn automatic updates off. Existing 0.1.x installations need one manual upgrade to receive this feature.
+
+The local debugging port grants local software access to the desktop renderer. Never expose or forward port 39222. Internal host interfaces can change.
+
+中文：一键安装自带专用 Node 和预编译 helper，无需安装开发工具。支持 macOS 13+ 的 Apple Silicon 和 Intel；保留旧版设置并备份，失败时回滚。
+
+自动更新默认开启：每 6 小时检查正式版，下载校验后自动升级并重启插件后台，客户端保持运行。更新失败自动回滚，一小时后重试。0.1.x 用户先执行一次上方安装命令，之后即可自动更新。
+
+[English guide](https://github.com/${repository}#readme) · [中文说明](https://github.com/${repository}/blob/main/README.zh-CN.md) · [Security](https://github.com/${repository}/blob/main/SECURITY.md)
+
+Assets include both standalone bundles, install.sh, and the npm source tarball. SHA256SUMS.txt covers all four assets. Standalone bundles include readable JavaScript, Swift source, Node and its license. npm/source installation still requires Node.js 22+ and Xcode Command Line Tools.
+`);
   console.log(`Prepared ${manifest.filename}`);
   return manifest;
 }
@@ -40,6 +68,12 @@ function readManifest() {
   const bytes = fs.readFileSync(path.join(dist, manifest.filename));
   if (integrity(bytes) !== manifest.integrity || sha256(bytes) !== manifest.sha256) throw Error('Release artifact integrity mismatch');
   if (manifest.commit !== run('git', ['rev-parse', 'HEAD'])) throw Error('Artifact belongs to another commit');
+  const expected = [manifest.filename, ...['arm64', 'x64'].map(arch => `codex-ringside-v${pkg.version}-darwin-${arch}.tar.gz`), 'install.sh'];
+  if (JSON.stringify(Object.keys(manifest.assets ?? {}).sort()) !== JSON.stringify(expected.sort())) throw Error('Missing release assets');
+  for (const [file, sum] of Object.entries(manifest.assets)) {
+    if (sha256(fs.readFileSync(path.join(dist, file))) !== sum) throw Error(`Release asset integrity mismatch: ${file}`);
+  }
+  if (fs.readFileSync(path.join(dist, 'SHA256SUMS.txt'), 'utf8') !== Object.entries(manifest.assets).map(([file, sum]) => `${sum}  ${file}\n`).join('')) throw Error('Release checksums differ from the manifest');
   return manifest;
 }
 
@@ -78,7 +112,7 @@ async function github() {
   const remote = await registryVersion();
   if (remote?.dist?.integrity !== manifest.integrity || !remote.dist.attestations?.url) throw Error('npm release has not been verified');
   const tag = `v${pkg.version}`;
-  const files = [manifest.filename, 'SHA256SUMS.txt'];
+  const files = [...Object.keys(manifest.assets), 'SHA256SUMS.txt'];
   const releases = JSON.parse(run('gh', ['api', `repos/${repository}/releases?per_page=100`]));
   let release = releases.find(item => item.tag_name === tag);
   if (!release) {

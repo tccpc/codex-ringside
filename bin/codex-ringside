@@ -1,0 +1,6 @@
+#!/bin/sh
+# This launcher and the LaunchAgent both use the private, installed runtime.
+set -eu
+unset NODE_OPTIONS NODE_PATH
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec "$root/runtime/node" "$root/bin/codex-ringside.cjs" "$@"

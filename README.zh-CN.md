@@ -19,75 +19,95 @@
 
 ## 安装
 
-需要 macOS、Node.js 22+ 和 Xcode Command Line Tools（`xcode-select --install`），以及已登录的兼容桌面客户端。开发与真机验证使用 `/Applications/ChatGPT.app`，版本 `26.1027.30824`。其他客户端版本依赖相同内部结构，未逐一验证。
+一键安装需要 **macOS 13 或更高版本**（Apple Silicon 或 Intel），以及已登录的兼容桌面客户端。**无需自行安装 Node.js、npm、Homebrew 或 Xcode Command Line Tools。** 安装包自带专用 Node 和预编译 helper。开发验证使用 `/Applications/ChatGPT.app`，版本 `26.1027.30824`；其他客户端版本依赖相同内部结构，未逐一验证。命令行和设置面板目前使用中文。
 
-### 方式一：让 AI 帮你安装
+### 方式一：一键安装（推荐）
 
-把下面整段提示词复制给能在你的 Mac 上运行终端命令的 AI 助手，让它完成环境检查、安装和结果验证。遇到 macOS 授权弹窗或客户端登录时，由你本人完成操作。
+在终端粘贴这一条命令：
 
-```text
-请帮我在这台 Mac 上安装 Codex Ringside，项目地址：https://github.com/tccpc/codex-ringside
-
-先阅读仓库的 README，简要说明安装内容和本机调试端口的用途。
-检查 macOS、Node.js 22+、Xcode Command Line Tools，以及已登录的兼容桌面客户端。
-如果不是 macOS，请说明不支持并停止安装。
-缺少依赖时协助补齐，需要我处理系统弹窗时再提示我。
-
-从官方 npm 源安装：
-npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest install
-
-保留已有的 Ringside 或 Codex Plus 设置；
-如果兼容桌面应用不在默认位置，用 CODEX_RINGSIDE_APP 指定检测到的应用路径。
-
-安装后运行：
-npx --yes --registry=https://registry.npmjs.org/ codex-ringside@latest status
-
-告诉我后台是否正常运行、侧栏圆环是否已显示，并给出卸载命令。
-圆环尚未显示时，解释当前状态，提醒我保存工作后手动重开客户端；
-不要主动关闭或强制结束我正在使用的客户端。
+```bash
+curl -fsSL https://github.com/tccpc/codex-ringside/releases/latest/download/install.sh | /bin/bash
 ```
 
-### 方式二：终端安装
+从 **0.2.0** 版本开始提供。脚本自动识别芯片架构（包括 Rosetta 下的终端），通过 HTTPS 下载对应安装包，校验 SHA-256 后安装到当前用户目录。安装和后台运行均使用插件自带的 Node，不依赖或更改系统 Node、Homebrew、终端配置，也不需要 `sudo`。安装过程不会关闭正在使用的客户端。
 
-以下命令显式安装后台任务；仅下载 npm 包不会安装或启动后台。命令行和设置面板目前使用中文。
+如果圆环还没出现，保存工作，用 ⌘Q 退出客户端，再点原图标打开。后台可能在符合下文条件时将刚启动的客户端重开一次。
+
+只观察、不自动重开客户端：
+
+```bash
+curl -fsSL https://github.com/tccpc/codex-ringside/releases/latest/download/install.sh | /bin/bash -s -- --observe
+```
+
+想先审阅脚本，可以从 [Releases](https://github.com/tccpc/codex-ringside/releases) 下载 `install.sh`，阅读后执行 `/bin/bash install.sh`。加上 `--version 0.2.0` 可指定发行版本。应用不在默认位置时，先设置路径，再执行一键安装命令：
+
+```bash
+export CODEX_RINGSIDE_APP="/Applications/ChatGPT.app"
+```
+
+安装后查看状态和卸载也不需要 npm：
+
+```bash
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" uninstall
+```
+
+### 方式二：让 AI 帮你安装
+
+把下面整段提示词复制给能在你的 Mac 上运行命令的 AI 助手：
+
+```text
+请帮我在这台 Mac 上安装 Codex Ringside：https://github.com/tccpc/codex-ringside
+先阅读 README，说明安装内容和本机调试端口的用途。
+检查 macOS 13+ 和已登录的兼容客户端，不支持时停止。
+使用 README 的一键安装入口；安装包自带 Node 和 helper，不要为此安装 Homebrew、Node 或 Xcode 命令行工具。
+保留已有设置；应用不在默认位置时，先 export CODEX_RINGSIDE_APP 为检测到的路径。
+安装后运行："$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
+告诉我后台是否正常、圆环是否显示，并给出卸载命令。
+需要重开客户端时提醒我保存工作后手动操作，不要主动关闭或强制结束客户端。
+```
+
+### 方式三：npm / 源码安装
+
+适用于已有 **Node.js 22+ 和 Xcode Command Line Tools** 的开发者：
 
 ```bash
 npx codex-ringside@latest install
 ```
 
-然后保存工作，用 ⌘Q 退出 Codex，再点原图标打开。
-
-只想看后台会做什么、不重启 Codex：
-
-```bash
-npx codex-ringside@latest install --observe
-```
-
-安装内容：
+此方式在本机编译 Swift helper，需要本机 Node 能正常运行。如果 `npx` 因 Homebrew 动态库缺失崩溃，直接使用方式一。仅下载 npm 包不会安装或启动后台；没有安装生命周期脚本。npm 用户仍可使用 `npx codex-ringside@latest <命令>` 查看状态、设置背景和卸载。
 
 | 位置 | 内容 |
 |---|---|
-| `~/Library/Application Support/CodexRingside` | 程序、`bridge`、设置和状态 |
+| `~/Library/Application Support/CodexRingside` | 程序、专用 Node 及许可证（一键安装）、helper、设置和状态 |
 | `~/Library/LaunchAgents/com.codexringside.agent.plist` | 后台任务 |
 | `~/Library/Logs/CodexRingside` | 日志 |
+| `~/Library/Application Support/CodexRingside Backups` | 安装和迁移备份 |
 
-运行时不依赖这个仓库，改代码后要重新 `install`。
+应用路径按 `CODEX_RINGSIDE_APP`、旧变量 `CODEX_PLUS_APP`、保存的应用路径、默认 `/Applications/ChatGPT.app` 的顺序选择。
 
 ## 升级和从 Codex Plus 迁移
 
-升级时重新运行 `npx codex-ringside@latest install`。已有新版设置优先；首次迁移保留旧版应用路径、观察模式、背景设置和图片，并停用 `com.codexplus.agent`。先暂存编译、备份，再切换后台；新后台未就绪时恢复原文件和运行状态。
+从本版起，**自动更新默认开启**。后台启动约一分钟后检查 GitHub 的最新正式发行版，之后每 6 小时检查一次；检查时间会保存，重启后台不会重复下载。发现更高版本后，自动下载对应架构的完整安装包，校验 SHA-256、版本及运行时，再升级程序和专用 Node。跳过草稿和预发行版，不会降级。网络或安装失败会记录原因，一小时后重试。
+
+更新由独立任务执行，只重启插件后台，不关闭正在使用的客户端。现有应用路径、观察模式、背景、图片和自动更新开关都会保留；新后台未就绪时恢复原文件、运行时和运行状态。下载期间卸载、重新安装或关闭自动更新，会取消这次自动安装。
+
+也可以立即更新、只检查或控制自动更新：
+
+```bash
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --check
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --disable
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" update --enable
+```
+
+`status` 的 `update` 字段显示当前/最新版本、自动更新开关、检查时间、下次检查时间和失败原因；时间字段为 Unix 毫秒时间戳。更新日志在 `~/Library/Logs/CodexRingside/update.log` 和 `update.err.log`。指定版本安装后仍会跟随正式版；需要固定版本或保留源码改动时，运行 `update --disable`。
+
+旧版用户先重新执行一次一键安装命令，获得自动更新功能。已有新版设置优先；首次从 Codex Plus 迁移会保留旧版设置，并停用 `com.codexplus.agent`。安装、更新切换和卸载共用互斥锁，不会互相覆盖。
 
 备份保留在 `~/Library/Application Support/CodexRingside Backups/install-*`。`receipt.json` 记录原路径及后台运行状态，`0` 是原 Ringside 安装，`1` 是原 Codex Plus 安装。卸载不会删除备份，确认新版正常后可手动清理。
 
-迁移和重装保留观察模式；`install --observe` 可明确关闭自动接管。要重新开启，退出后台后将安装目录 `settings.json` 的 `allowClientRestart` 改为 `true`，再运行 `install`。备份包含本地路径及图片，不要上传。
-
-非默认应用路径：
-
-```bash
-CODEX_RINGSIDE_APP="/Applications/ChatGPT.app" npx codex-ringside@latest install
-```
-
-新环境变量优先于旧变量 `CODEX_PLUS_APP`，然后使用保存的应用路径，最后使用默认 `/Applications/ChatGPT.app`。
+迁移和重装保留观察模式；`--observe` 可明确关闭自动接管。要重新开启，退出后台后将安装目录 `settings.json` 的 `allowClientRestart` 改为 `true`，再重新安装。备份包含本地路径及图片，不要上传。npm / 源码用户可用 `npx codex-ringside@latest update` 执行相同更新；更新成功后，已安装副本转为包含专用 Node 的独立安装，不修改源码工作区。继续用 `npx codex-ringside@latest install` 则仍需开发工具。
 
 ## 自定义背景
 
@@ -118,22 +138,22 @@ CODEX_RINGSIDE_APP="/Applications/ChatGPT.app" npx codex-ringside@latest install
 也可以用命令行设置，5 秒内生效：
 
 ```bash
-npx codex-ringside@latest background image ~/Pictures/photo.jpg --transparency 50 --blur 8
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background image ~/Pictures/photo.jpg --transparency 50 --blur 8
 ```
 
 ```bash
-npx codex-ringside@latest background --layout contain --zoom 120 --y 20
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background --layout contain --zoom 120 --y 20
 ```
 
 ```bash
-npx codex-ringside@latest background --crop 10,0,80,60
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background --crop 10,0,80,60
 ```
 
 ```bash
-npx codex-ringside@latest background default
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" background default
 ```
 
-只写选项时保留当前来源，不带参数时打印当前设置。`--crop` 的四个数是左、上、宽、高的百分比，`--crop none` 取消裁剪。完整选项见不带参数运行 `npx codex-ringside@latest` 的用法提示。
+只写选项时保留当前来源，不带参数时打印当前设置。`--crop` 的四个数是左、上、宽、高的百分比，`--crop none` 取消裁剪。完整选项见不带参数运行安装目录内的 `bin/codex-ringside` 的用法提示。
 
 使用限制：
 
@@ -145,8 +165,10 @@ npx codex-ringside@latest background default
 
 ## 查看状态
 
+下载失败或 SHA-256 校验失败时，安装器会在更改现有安装前停止，可在网络恢复后重试。发行版缺少安装包时，请选择 0.2.0 或更高版本。通过一键入口安装后，无需检查系统 Node 或编译工具。
+
 ```bash
-npx codex-ringside@latest status
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
 重点看 `cdp.windows[].card.placed`。背景看 `background`（保存的设置）和 `cdp.windows[].background`：`applied` 表示已生效，`nativeGlass` 为 `false` 表示 Codex 此刻关闭了毛玻璃。输出可能包含本机路径，分享前请先脱敏。
@@ -154,10 +176,10 @@ npx codex-ringside@latest status
 ## 卸载
 
 ```bash
-npx codex-ringside@latest uninstall
+"$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" uninstall
 ```
 
-新旧后台任务会被移除，程序、设置和日志进废纸篓，安装备份保留。当前窗口的注入界面会移除；调试端口会保持到客户端退出，下次正常启动后关闭。桌面应用文件未改动。
+新旧后台任务和自动更新任务会被移除，专用 Node 随程序一起卸载，程序、设置和日志进废纸篓，安装备份保留。当前窗口的注入界面会移除；调试端口会保持到客户端退出，下次正常启动后关闭。桌面应用文件未改动。
 
 ## 什么时候会重启 Codex
 
@@ -180,14 +202,18 @@ npx codex-ringside@latest uninstall
 
 ## 隐私
 
-只读取额度数据，不读项目文件、对话内容和 Codex 数据库，也没有任何上报。`auth.json` 只看修改时间，用来发现账号切换，不读内容。app-server 自身的网络请求由 Codex CLI 发出。背景功能只读取系统壁纸和你选的图片，转换后存在本机的 `CodexRingside/background` 目录，不会上传。
+只读取额度数据，不读项目文件、对话内容和 Codex 数据库，也没有遥测或数据上传。`auth.json` 只看修改时间，用来发现账号切换，不读内容。app-server 自身的网络请求由 Codex CLI 发出。自动更新会请求 GitHub 的公开发行接口并下载发行包，不使用账号令牌，不发送本机设置、路径或图片；可以用 `update --disable` 关闭自动请求。背景功能只读取系统壁纸和你选的图片，转换后存在本机的 `CodexRingside/background` 目录，不会上传。
 
 ## 开发
+
+开发和源码构建仍需要 Node.js 22+ 与 Xcode Command Line Tools。一键安装的普通用户不需要这些工具。
 
 ```bash
 npm ci --ignore-scripts
 npm run verify
 ```
+
+`npm run build:standalone` 构建本机架构的完整安装包，`npm run check:standalone` 使用包内真实 Node 和 helper，在系统开发工具不可用的隔离环境下验证安装、重装和回滚。CI 分别在 Apple Silicon 与 Intel 上运行此检查。
 
 卡片样式可以用 `test/fixtures/card.html` 调试，不需要真实的 Codex。
 

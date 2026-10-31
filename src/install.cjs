@@ -5,6 +5,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const launchd = require('./launchd.cjs');
 const { DEFAULT_APP, isExecutable, resolveCodexBin, resolveNode } = require('./resolve.cjs');
+const { inspectBundle, copyBundle } = require('./standalone.cjs');
 
 const SWIFTC = '/usr/bin/swiftc';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -29,10 +30,12 @@ function writeJson(file, data) {
   fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
 }
 
-function preflight(settings) {
+function preflight(settings, repoRoot, current) {
   if (process.platform !== 'darwin') throw new Error('只支持 macOS');
   const app = fs.realpathSync(settings.app);
   resolveCodexBin(app);
+  const bundle = inspectBundle(repoRoot);
+  if (bundle) return { app, node: path.join(current.installDir, 'runtime/node'), bundle };
   if (!isExecutable(SWIFTC)) throw new Error('需要 Xcode Command Line Tools：xcode-select --install');
   return { app, node: resolveNode() };
 }
@@ -98,12 +101,13 @@ function selectSettings(current, legacy, env, observe) {
     ?? readJson(path.join(legacy.installDir, 'settings.json')) ?? {};
   return {
     app: env.CODEX_RINGSIDE_APP || env.CODEX_PLUS_APP || saved.app || DEFAULT_APP,
-    allowClientRestart: observe === undefined ? saved.allowClientRestart !== false : !observe
+    allowClientRestart: observe === undefined ? saved.allowClientRestart !== false : !observe,
+    autoUpdate: saved.autoUpdate !== false
   };
 }
 
 function copyUserData(source, stage, destination) {
-  for (const name of ['background.json', 'background', 'user-images']) {
+  for (const name of ['background.json', 'background', 'user-images', 'update-state.json']) {
     copyIfPresent(path.join(source, name), path.join(stage, name));
   }
   const file = path.join(stage, 'background.json');
@@ -123,8 +127,10 @@ function copyUserData(source, stage, destination) {
 async function install(options = {}) {
   const { current, legacy, backupRoot, repoRoot, services } = { ...defaults, ...options };
   return withLock(current, async () => {
+    // Recheck under the install lock: an update downloaded before uninstall/reinstall is stale.
+    options.beforeInstall?.();
     const settings = selectSettings(current, legacy, options.env ?? process.env, options.observe);
-    const checked = await (options.preflight ?? preflight)(settings);
+    const checked = await (options.preflight ?? preflight)(settings, repoRoot, current);
     settings.app = checked.app;
     const stage = fs.mkdtempSync(`${current.installDir}.staging-`);
     const locations = [current, legacy];
@@ -134,8 +140,13 @@ async function install(options = {}) {
     let touched = false;
     try {
       fs.cpSync(path.join(repoRoot, 'src'), path.join(stage, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(stage, 'bin'));
+      fs.copyFileSync(path.join(repoRoot, 'bin/codex-ringside.cjs'), path.join(stage, 'bin/codex-ringside.cjs'));
+      if (checked.bundle) fs.copyFileSync(path.join(repoRoot, 'bin/codex-ringside'), path.join(stage, 'bin/codex-ringside'));
       for (const name of ['package.json', 'LICENSE', 'NOTICE']) fs.copyFileSync(path.join(repoRoot, name), path.join(stage, name));
-      await (options.compile ?? compile)(repoRoot, stage);
+      if (checked.bundle) copyBundle(repoRoot, stage);
+      else await (options.compile ?? compile)(repoRoot, stage);
+      options.beforeInstall?.();
       fs.mkdirSync(backupRoot, { recursive: true, mode: 0o700 });
       backup = fs.mkdtempSync(path.join(backupRoot, 'install-'));
       snapshots = capture(locations, backup);
@@ -194,6 +205,7 @@ async function install(options = {}) {
 async function uninstall(options = {}) {
   const { current, legacy, trashRoot, services } = { ...defaults, ...options };
   return withLock(current, async () => {
+    await services.bootout(launchd.UPDATE_LABEL);
     const locations = [current, legacy];
     const running = locations.map(location => !!services.printJob(location.label));
     const items = locations.flatMap((location, i) => launchd.trashItems(location)
@@ -219,4 +231,4 @@ async function uninstall(options = {}) {
   });
 }
 
-module.exports = { install, uninstall, selectSettings };
+module.exports = { install, uninstall, selectSettings, withLock };

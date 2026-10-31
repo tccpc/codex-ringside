@@ -151,6 +151,7 @@ function loadSettings(root) {
 
 async function main() {
   const { startWatcher } = require('./startup/watch.cjs');
+  const { startAutoUpdater } = require('./update.cjs');
   const root = path.resolve(__dirname, '..');
   const settings = loadSettings(root);
   const abort = new AbortController();
@@ -165,6 +166,7 @@ async function main() {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 
+  startAutoUpdater({ root, signal: abort.signal, log });
   await runAgent({ appPath: settings.app, root, signal: abort.signal });
   await watcher.exited;
 }

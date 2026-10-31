@@ -29,6 +29,11 @@ jobs:
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - run: npm run verify
+      - name: Build and verify standalone bundle without system Node or compiler
+        if: matrix.node == '24'
+        run: |
+          npm run build:standalone
+          npm run check:standalone
   ci:
     name: CI
     if: always()

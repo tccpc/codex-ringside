@@ -62,7 +62,7 @@ test('migration preserves settings, images and cooldown and retires the old serv
   assert.equal(fs.readFileSync(config.image, 'utf8'), 'original image');
   assert.ok(config.image.startsWith(h.current.installDir));
   assert.equal(config.transparency, 37);
-  assert.deepEqual(result.settings, { app: '/Applications/Custom.app', allowClientRestart: false });
+  assert.deepEqual(result.settings, { app: '/Applications/Custom.app', allowClientRestart: false, autoUpdate: true });
   assert.deepEqual(json(path.join(h.current.installDir, 'state.json')), { lastAttemptAt: 12345 });
   assert.deepEqual([...h.active], ['new']);
   assert.ok(h.events.indexOf('compile') < h.events.indexOf('stop:old'));
@@ -112,13 +112,13 @@ test('new settings win when both installations exist, including repeated install
 test('explicit new app variable wins over the legacy variable and saved app', async () => {
   const h = harness(); h.seed(h.legacy);
   const result = await install({ ...h.options, observe: true, env: { CODEX_RINGSIDE_APP: '/new.app', CODEX_PLUS_APP: '/old.app' } });
-  assert.deepEqual(result.settings, { app: '/new.app', allowClientRestart: false });
+  assert.deepEqual(result.settings, { app: '/new.app', allowClientRestart: false, autoUpdate: true });
 });
 
 test('legacy app variable remains usable on a fresh install', async () => {
   const h = harness();
   const result = await install({ ...h.options, env: { CODEX_PLUS_APP: '/old.app' } });
-  assert.deepEqual(result.settings, { app: '/old.app', allowClientRestart: true });
+  assert.deepEqual(result.settings, { app: '/old.app', allowClientRestart: true, autoUpdate: true });
 });
 
 test('rollback does not start a service that was stopped before installation', async () => {
@@ -174,4 +174,29 @@ test('CLI help and version work without an installed host or compiler', () => {
   const env = { ...process.env, CODEX_RINGSIDE_APP: '/missing-host.app' };
   assert.match(execFileSync(process.execPath, [cli, '--help'], { encoding: 'utf8', env }), /codex-ringside/);
   assert.equal(execFileSync(process.execPath, [cli, '--version'], { encoding: 'utf8', env }).trim(), require('../package.json').version);
+});
+
+test('automatic update settings and diagnostic history survive reinstall', async () => {
+  const h = harness(); h.seed(h.current, { observe: true });
+  const settings = path.join(h.current.installDir, 'settings.json');
+  write(settings, { ...json(settings), autoUpdate: false });
+  write(path.join(h.current.installDir, 'update-state.json'), { lastCheckedAt: 1234, nextCheckAt: 5678 });
+  await install(h.options);
+  assert.equal(json(settings).autoUpdate, false);
+  assert.deepEqual(json(path.join(h.current.installDir, 'update-state.json')), { lastCheckedAt: 1234, nextCheckAt: 5678 });
+});
+
+test('stale automatic updates fail under the install lock before stopping services', async () => {
+  const h = harness(); h.seed(h.current);
+  await assert.rejects(install({ ...h.options, beforeInstall: () => { throw Error('stale installation'); } }), /stale installation/);
+  assert.deepEqual(h.events, []);
+  assert.deepEqual([...h.active], ['new']);
+});
+
+test('uninstall stops the independent updater before moving installed files', async () => {
+  const h = harness(); h.seed(h.current);
+  h.active.add('com.codexringside.update');
+  await uninstall(h.options);
+  assert.equal(h.events[0], 'stop:com.codexringside.update');
+  assert.equal(h.active.size, 0);
 });

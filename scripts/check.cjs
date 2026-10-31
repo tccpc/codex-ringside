@@ -15,4 +15,6 @@ for (const file of files) {
   if (file.endsWith('app-shared-fixture.js')) execFileSync(process.execPath, ['--input-type=module', '--check'], { input: fs.readFileSync(file) });
   else execFileSync(process.execPath, ['--check', file]);
 }
-console.log(`Syntax OK: ${files.length} files`);
+execFileSync('/bin/bash', ['-n', path.join(root, 'install.sh')]);
+execFileSync('/bin/sh', ['-n', path.join(root, 'bin/codex-ringside')]);
+console.log(`Syntax OK: ${files.length} JavaScript files and 2 shell scripts`);

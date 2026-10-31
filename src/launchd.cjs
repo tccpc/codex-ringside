@@ -5,6 +5,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const LABEL = 'com.codexringside.agent';
+const UPDATE_LABEL = 'com.codexringside.update';
 const home = os.homedir();
 const paths = {
   installDir: path.join(home, 'Library/Application Support/CodexRingside'),
@@ -59,6 +60,19 @@ function agentConfig({ node, installDir = paths.installDir, logDir = paths.logDi
   };
 }
 
+// An independent, one-shot job survives bootout of the agent it is upgrading.
+function updateConfig({ node, installDir = paths.installDir, logDir = paths.logDir }) {
+  return {
+    Label: UPDATE_LABEL,
+    ProgramArguments: [node, path.join(installDir, 'src/update.cjs'), '--auto'],
+    RunAtLoad: true,
+    ProcessType: 'Background',
+    EnvironmentVariables: { NODE_OPTIONS: '', NODE_PATH: '' },
+    StandardOutPath: path.join(logDir, 'update.log'),
+    StandardErrorPath: path.join(logDir, 'update.err.log')
+  };
+}
+
 const launchctl = (...args) => execFileSync('/bin/launchctl', args, {
   encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', 'pipe']
 });
@@ -88,4 +102,4 @@ function writePlist(config, file = paths.plist) {
   execFileSync('/usr/bin/plutil', ['-lint', file], { stdio: 'ignore' });
 }
 
-module.exports = { LABEL, LEGACY_LABEL, legacyPaths, agentConfig, bootout, bootstrap, paths, plistXml, printJob, trashItems, writePlist };
+module.exports = { LABEL, UPDATE_LABEL, LEGACY_LABEL, legacyPaths, agentConfig, updateConfig, bootout, bootstrap, paths, plistXml, printJob, trashItems, writePlist };

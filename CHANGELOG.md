@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 (2026-11-03)
+
+- Bundle a wallpaper and background preset for fresh installations (cover, 134% zoom, top-left alignment, zero transparency and blur). Preserve existing images, edits and disabled backgrounds on upgrades, reinstalls and Codex Plus migrations.
+- Verify preset inclusion in npm packages and standalone bundles, real image preparation, settings preservation and failed-install rollback.
+
 ## 0.3.0 (2026-11-03)
 
 - Replace the native sidebar usage icon with Ringside meters in place, preserving its usage menu, management actions and keyboard controls. Restore the native icon when the add-on is removed.

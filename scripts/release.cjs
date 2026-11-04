@@ -24,6 +24,11 @@ function validateRelease() {
 
 function pack() {
   fs.mkdirSync(dist, { recursive: true });
+  const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8').split('\n');
+  const heading = changelog.findIndex(line => line === `## ${pkg.version}` || line.startsWith(`## ${pkg.version} (`));
+  if (heading < 0) throw Error('Missing changelog entry for this version');
+  const changes = changelog.slice(heading + 1).join('\n').split('\n## ')[0].trim();
+  if (!changes) throw Error('Empty changelog entry for this version');
   const bundles = ['arm64', 'x64'].map(arch => `codex-ringside-v${pkg.version}-darwin-${arch}.tar.gz`);
   for (const file of bundles) if (!fs.existsSync(path.join(dist, file))) throw Error(`Build the standalone bundle first: ${file}`);
   fs.copyFileSync(path.join(root, 'install.sh'), path.join(dist, 'install.sh'));
@@ -34,6 +39,10 @@ function pack() {
   fs.writeFileSync(path.join(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   fs.writeFileSync(path.join(dist, 'SHA256SUMS.txt'), Object.entries(manifest.assets).map(([file, sum]) => `${sum}  ${file}\n`).join(''));
   fs.writeFileSync(path.join(dist, 'RELEASE_NOTES.md'), `Codex Ringside ${pkg.version}
+
+## Changes
+
+${changes}
 
 Unofficial macOS add-on for usage rings and custom backgrounds in the Codex sidebar.
 

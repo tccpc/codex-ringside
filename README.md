@@ -104,6 +104,8 @@ Reinstalling preserves observe mode; `--observe` explicitly disables startup han
 
 ## Background controls
 
+A fresh installation automatically applies the bundled wallpaper: image source, cover layout, 134% zoom, top-left alignment, zero transparency and blur, 100% brightness/contrast/saturation, and no crop. The image is stored inside the add-on's directory; no separate download or file selection is needed. Upgrades, reinstalls and Codex Plus migrations preserve existing images and settings, including leaving backgrounds off for users who never enabled them. You can change the image, adjust the controls or turn the background off at any time. Framing varies with window proportions; the client's light/dark appearance setting is preserved.
+
 Click a ring, or press Enter or Space while focused, to open background settings. The hover details' background settings button, right-click and Shift+F10 also work. Open the native usage menu through the separate button in the hover details or ArrowDown while the ring is focused; this entry is hidden on clients without a compatible native usage button. Panel changes apply immediately; CLI changes apply within five seconds.
 
 | Source | Behavior |

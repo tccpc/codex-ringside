@@ -6,6 +6,7 @@ const { execFileSync } = require('node:child_process');
 const launchd = require('./launchd.cjs');
 const { DEFAULT_APP, isExecutable, resolveCodexBin, resolveNode } = require('./resolve.cjs');
 const { inspectBundle, copyBundle } = require('./standalone.cjs');
+const { normalizeBackground } = require('./background.cjs');
 
 const SWIFTC = '/usr/bin/swiftc';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -116,12 +117,23 @@ function copyUserData(source, stage, destination) {
   if (typeof config?.image === 'string') {
     const relative = path.relative(source, config.image);
     if (relative && !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)) {
-      const name = path.join('user-images', `imported${path.extname(config.image)}`);
+      const name = relative.startsWith(`user-images${path.sep}`)
+        ? relative : path.join('user-images', `imported${path.extname(config.image)}`);
       copyIfPresent(config.image, path.join(stage, name));
       config.image = path.join(destination, name);
       writeJson(file, config);
     }
   }
+}
+
+function seedBackground(stage, destination) {
+  const presets = path.join(stage, 'src/presets');
+  const preset = readJson(path.join(presets, 'default-background.json'));
+  if (preset?.source !== 'image' || preset.image !== 'wallpaper.png') throw new Error('安装包缺少有效的默认背景预设');
+  const image = path.join('user-images', 'default-background.png');
+  fs.mkdirSync(path.join(stage, 'user-images'), { recursive: true, mode: 0o700 });
+  fs.copyFileSync(path.join(presets, preset.image), path.join(stage, image));
+  writeJson(path.join(stage, 'background.json'), normalizeBackground({ ...preset, image: path.join(destination, image) }));
 }
 
 async function install(options = {}) {
@@ -146,6 +158,9 @@ async function install(options = {}) {
       for (const name of ['package.json', 'LICENSE', 'NOTICE']) fs.copyFileSync(path.join(repoRoot, name), path.join(stage, name));
       if (checked.bundle) copyBundle(repoRoot, stage);
       else await (options.compile ?? compile)(repoRoot, stage);
+      // Older installations may have no background.json because they never enabled a background.
+      // Only a genuinely new install gets the preset; upgrading must retain that implicit opt-out.
+      if (!locations.some(location => fs.existsSync(location.installDir))) seedBackground(stage, current.installDir);
       options.beforeInstall?.();
       fs.mkdirSync(backupRoot, { recursive: true, mode: 0o700 });
       backup = fs.mkdtempSync(path.join(backupRoot, 'install-'));
@@ -156,7 +171,8 @@ async function install(options = {}) {
       for (const location of locations) await services.bootout(location.label);
 
       // Copy after stopping writers. Existing Ringside data takes precedence over legacy data.
-      const dataRoot = fs.existsSync(path.join(current.installDir, 'settings.json')) ? current.installDir : legacy.installDir;
+      const hasCurrentData = ['settings.json', 'background.json'].some(name => fs.existsSync(path.join(current.installDir, name)));
+      const dataRoot = hasCurrentData ? current.installDir : legacy.installDir;
       copyUserData(dataRoot, stage, current.installDir);
       const cooldown = Math.max(...locations.map(location => {
         const value = readJson(path.join(location.installDir, 'state.json'))?.lastAttemptAt;

@@ -1,6 +1,6 @@
 {
   "name": "codex-ringside",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Usage rings and customizable backgrounds for the Codex desktop app. Unofficial macOS add-on.",
   "license": "MIT",
   "type": "commonjs",
@@ -49,6 +49,8 @@
     "bin/*.cjs",
     "src/**/*.cjs",
     "src/**/*.js",
+    "src/presets/default-background.json",
+    "src/presets/wallpaper.png",
     "native/bridge.swift",
     "README*.md",
     "LICENSE",

@@ -1,0 +1,14 @@
+{
+  "source": "image",
+  "image": "wallpaper.png",
+  "transparency": 0,
+  "blur": 0,
+  "zoom": 134,
+  "x": 0,
+  "y": 0,
+  "brightness": 100,
+  "contrast": 100,
+  "saturation": 100,
+  "layout": "cover",
+  "crop": null
+}

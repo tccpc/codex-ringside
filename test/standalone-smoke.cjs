@@ -8,6 +8,7 @@ const { execFileSync } = require('node:child_process');
 const [payload, temp] = process.argv.slice(2);
 const { install, uninstall } = require(path.join(payload, 'src/install.cjs'));
 const { agentConfig } = require(path.join(payload, 'src/launchd.cjs'));
+const { BackgroundStore } = require(path.join(payload, 'src/background.cjs'));
 const { prepareBundle, runUpdate, updateStatus } = require(path.join(payload, 'src/update.cjs'));
 const { version } = require(path.join(payload, 'package.json'));
 let installedVersion = version;
@@ -39,9 +40,26 @@ const options = {
 
 async function main() {
   await install(options);
-  // Upgrade from the installed copy, with preserved settings and a failing watcher rollback.
   const background = path.join(current.installDir, 'background.json');
-  fs.writeFileSync(background, JSON.stringify({ source: 'glass', transparency: 42 }));
+  const preset = JSON.parse(fs.readFileSync(background));
+  assert.deepEqual(preset, {
+    ...JSON.parse(fs.readFileSync(path.join(payload, 'src/presets/default-background.json'))),
+    image: path.join(current.installDir, 'user-images/default-background.png')
+  });
+  const picture = fs.readFileSync(preset.image);
+  assert.deepEqual(picture, fs.readFileSync(path.join(payload, 'src/presets/wallpaper.png')));
+  // The real image preparation runs without system development tools or the developer's image path.
+  const store = new BackgroundStore({ root: current.installDir });
+  const prepared = await store.rebuild();
+  assert.equal(prepared.payload.error, null);
+  assert.ok(prepared.payload.image);
+  assert.ok(fs.statSync(prepared.files[prepared.payload.image]).size > 0);
+  await install({ ...options, repoRoot: current.installDir });
+  assert.deepEqual(JSON.parse(fs.readFileSync(background)), preset);
+  assert.deepEqual(fs.readFileSync(preset.image), picture);
+  // Upgrade from the installed copy, with preserved settings and a failing watcher rollback.
+  const custom = { ...preset, transparency: 42, blur: 8, zoom: 157, x: 31, y: 64 };
+  fs.writeFileSync(background, JSON.stringify(custom));
   await install({ ...options, repoRoot: current.installDir });
   assert.equal(JSON.parse(fs.readFileSync(background)).transparency, 42);
   // A wrong-architecture or damaged bundle fails before a running installation is stopped.
@@ -98,9 +116,11 @@ async function main() {
   // The installed CLI still runs even after the downloaded extraction is removed.
   fs.rmSync(payload, { recursive: true });
   assert.equal(execFileSync(path.join(current.installDir, 'bin/codex-ringside'), ['--version'], { encoding: 'utf8' }).trim(), installedVersion);
+  assert.deepEqual(JSON.parse(fs.readFileSync(background)), custom);
+  assert.deepEqual(fs.readFileSync(custom.image), picture);
   await uninstall(options);
   assert.equal(fs.existsSync(current.installDir), false);
   assert.equal(running.size, 0);
-  console.log('Standalone OK: private Node, prebuilt helper, paths with spaces, verified updates, rollback and uninstall; no system compiler or Node');
+  console.log('Standalone OK: private Node, prebuilt helper, first-install preset, preserved images/settings, paths with spaces, verified updates, rollback and uninstall; no system compiler or Node');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

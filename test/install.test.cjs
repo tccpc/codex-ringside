@@ -53,6 +53,88 @@ function harness() {
   return { root, current, legacy, active, events, options, seed };
 }
 
+test('a fresh install applies the bundled picture and preset using a permanent local path', async () => {
+  const h = harness();
+  await install(h.options);
+  const image = path.join(h.current.installDir, 'user-images/default-background.png');
+  assert.deepEqual(json(path.join(h.current.installDir, 'background.json')), {
+    source: 'image', image, transparency: 0, blur: 0, zoom: 134, x: 0, y: 0,
+    brightness: 100, contrast: 100, saturation: 100, layout: 'cover', crop: null
+  });
+  assert.deepEqual(fs.readFileSync(image), fs.readFileSync(path.join(__dirname, '../src/presets/wallpaper.png')));
+});
+
+test('reinstall preserves the installed picture and edits even when the bundled preset changes', async () => {
+  const h = harness();
+  await install(h.options);
+  const file = path.join(h.current.installDir, 'background.json');
+  const original = json(file);
+  const picture = fs.readFileSync(original.image);
+  const changedBundle = { ...h.options, compile: (_repo, stage) => {
+    write(path.join(stage, 'bridge'), 'compiled');
+    write(path.join(stage, 'src/presets/wallpaper.png'), 'a different bundled picture');
+    write(path.join(stage, 'src/presets/default-background.json'), { source: 'image', image: 'wallpaper.png', zoom: 200 });
+  } };
+  await install(changedBundle);
+  assert.deepEqual(json(file), original);
+  assert.deepEqual(fs.readFileSync(original.image), picture);
+  const edited = { ...original, transparency: 37, blur: 12, zoom: 175, x: 23, y: 68,
+    brightness: 85, contrast: 115, saturation: 70, layout: 'contain', crop: { x: 0.1, y: 0.2, w: 0.7, h: 0.6 } };
+  write(file, edited);
+  await install(changedBundle);
+  assert.deepEqual(json(file), edited);
+  assert.deepEqual(fs.readFileSync(edited.image), picture);
+});
+
+for (const location of ['current', 'legacy']) {
+  test(`an existing ${location} install without background settings keeps its implicit default`, async () => {
+    const h = harness(); h.seed(h[location]);
+    fs.rmSync(path.join(h[location].installDir, 'background.json'));
+    await install(h.options);
+    await install(h.options);
+    assert.equal(fs.existsSync(path.join(h.current.installDir, 'background.json')), false);
+    assert.equal(fs.existsSync(path.join(h.current.installDir, 'user-images/default-background.png')), false);
+  });
+}
+
+for (const source of ['default', 'wallpaper', 'glass']) {
+  test(`reinstall preserves the user's explicit ${source} source`, async () => {
+    const h = harness(); h.seed(h.current);
+    const file = path.join(h.current.installDir, 'background.json');
+    const config = { source, image: null, transparency: 61, blur: 9 };
+    write(file, config);
+    await install(h.options);
+    assert.deepEqual(json(file), config);
+  });
+}
+
+test('current background settings survive even without a settings.json', async () => {
+  const h = harness(); h.seed(h.legacy);
+  const file = path.join(h.current.installDir, 'background.json');
+  const config = { source: 'default', transparency: 82 };
+  write(file, config);
+  await install(h.options);
+  assert.deepEqual(json(file), config);
+});
+
+test('a missing bundled picture fails a fresh install before stopping services', async () => {
+  const h = harness();
+  await assert.rejects(install({ ...h.options, compile: (_repo, stage) => {
+    fs.rmSync(path.join(stage, 'src/presets/wallpaper.png'));
+  } }), /ENOENT/);
+  assert.deepEqual(h.events, []);
+  assert.equal(fs.existsSync(h.current.installDir), false);
+});
+
+test('a failed fresh install rolls back and a retry still applies the preset', async () => {
+  const h = harness();
+  await assert.rejects(install({ ...h.options, waitReady: () => { throw Error('not ready'); } }), /not ready/);
+  assert.equal(fs.existsSync(h.current.installDir), false);
+  assert.equal(h.active.size, 0);
+  await install(h.options);
+  assert.equal(json(path.join(h.current.installDir, 'background.json')).source, 'image');
+});
+
 test('migration preserves settings, images and cooldown and retires the old service', async () => {
   const h = harness();
   const image = path.join(h.legacy.installDir, 'picture.png');

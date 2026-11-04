@@ -70,6 +70,8 @@ function mergeSnapshot(current, patch) {
   return {
     ...base,
     ...patch,
+    credits: patch.credits === undefined ? base?.credits ?? null
+      : isRecord(patch.credits) ? { ...base?.credits, ...patch.credits } : null,
     primary: mergeWindow(base?.primary, patch.primary),
     secondary: mergeWindow(base?.secondary, patch.secondary)
   };
@@ -81,7 +83,10 @@ function mergeResponse(current, patch) {
   if (!isRecord(patch)) return null;
   const changedAccount = hasField(patch, 'accountId') && hasField(current, 'accountId')
     && patch.accountId !== current.accountId;
-  const base = changedAccount ? {} : current ?? {};
+  const oldPlan = pickCodexSnapshot(current)?.planType;
+  const newPlan = pickCodexSnapshot(patch)?.planType;
+  const changedPlan = oldPlan && newPlan && oldPlan !== newPlan;
+  const base = changedAccount || changedPlan ? {} : current ?? {};
   const merged = { ...base, ...patch };
   merged.rateLimits = base.rateLimits ?? null;
   if (isRecord(base.rateLimitsByLimitId)) merged.rateLimitsByLimitId = base.rateLimitsByLimitId;
@@ -122,11 +127,31 @@ function formatUsage(response) {
     const percent = remainingPercent(window.usedPercent);
     return { label: labels.short, name: labels.long, percent, tone: tone(percent), resetsAt: formatResetTime(window.resetsAt) };
   });
+  const credits = formatCredits(snapshot?.credits);
   return {
     rings,
-    message: rings.length ? null : '暂时无法读取 Codex 剩余额度',
+    plan: formatPlan(snapshot?.planType),
+    credits,
+    message: rings.length || credits ? null : '暂时无法读取 Codex 剩余额度',
     note: resetCreditsNote(response)
   };
+}
+
+function formatPlan(plan) {
+  if (typeof plan !== 'string' || !plan.trim()) return null;
+  const labels = { free: 'Free', go: 'Go', plus: 'Plus', pro: 'Pro', team: 'Team', business: 'Business',
+    enterprise: 'Enterprise', edu: 'Edu' };
+  return Object.hasOwn(labels, plan) ? labels[plan] : plan;
+}
+
+function formatCredits(credits) {
+  if (!isRecord(credits)) return null;
+  if (credits.unlimited === true) return { unlimited: true, balance: null, label: '不限额' };
+  const raw = credits.balance;
+  if (typeof raw !== 'number' && (typeof raw !== 'string' || !raw.trim())) return null;
+  const balance = Number(raw);
+  if (!Number.isFinite(balance) || balance < 0) return null;
+  return { unlimited: false, balance, label: new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(balance) };
 }
 
 function resetCreditsNote(response) {
@@ -139,6 +164,9 @@ function unavailable(value, message = '暂时无法读取 Codex 剩余额度，�
     ...value,
     message,
     stale: true,
+    credits: null,
+    plan: null,
+    note: null,
     rings: (value?.rings ?? []).map(ring => ({ ...ring, percent: null, tone: 'muted', resetsAt: null }))
   };
 }

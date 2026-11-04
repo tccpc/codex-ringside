@@ -4,18 +4,20 @@
 
 ![背景设置](https://raw.githubusercontent.com/tccpc/codex-ringside/main/docs/images/background-settings.png)
 
-在 Codex 桌面端的侧栏显示剩余额度圆环，悬停可看重置时间；点击圆环可以自定义 Codex 的背景：图片、壁纸或毛玻璃，透明度和模糊自由调节，图片还能裁剪、缩放和调整布局。仅支持 macOS。
+用剩余额度圆环替换 Codex 桌面端侧栏的官方用量图标，悬停可看套餐、余额和重置时间，点击圆环打开原有背景设置。可以自定义图片、壁纸或毛玻璃，透明度和模糊自由调节，图片还能裁剪、缩放和调整布局。悬停详情中的“用量菜单”保留官方“管理用量”等操作。仅支持 macOS。
 
 这是非官方插件，与 OpenAI 无关。原理参考 [Codex Usage Card](https://github.com/Lorie7813/codex-usage-card)，署名见 [NOTICE](NOTICE)。
 
 ## 工作原理
 
 - **额度**：启动 Codex 内置的 `codex app-server`，通过 stdio 调用 `account/rateLimits/read`，每 60 秒刷新一次。
-- **显示**：通过本机调试端口 `127.0.0.1:39222` 把卡片注入到 `nav[data-app-navigation-rail]`。
+- **显示**：通过本机调试端口 `127.0.0.1:39222` 在侧栏官方用量按钮内替换图标，保留原生菜单、键盘操作和“管理用量”等账号功能。找不到兼容的官方按钮时，回退为独立圆环；卸载会恢复原图标。
 - **背景**：同样通过调试端口，把 Codex 外壳层的背景清空，在页面最底层放一张图片。窗口属性由主进程控制，插件改不了，所以“透明”透出的是 Codex 自带的系统毛玻璃，壁纸来源显示的是对齐到屏幕位置的桌面壁纸。
 - **启动**：Codex 的 `app.asar` 受完整性校验保护，不能修改，只能让它带调试端口启动。后台任务发现你从原图标打开 Codex 时，会在安全条件都满足的情况下有序退出，再带端口重开一次。
 
 账号有几个额度窗口就显示几个圆环。圆环是分段刻度样式，环内显示剩余百分比和窗口名称（“5小时”或“周”）。额度充足时为青绿渐变，50% 及以下转为黄橙，低于 10% 转为橙红。
+
+悬停详情显示套餐、各窗口的剩余百分比及重置时间、可用重置卡，以及接口提供的额度余额。余额按整数分组显示，例如 `12,346`；零余额显示 `0`，无限额度显示“不限额”，未返回余额时不猜测数值。只有余额、没有百分比窗口时，侧栏显示余额摘要。连接失败、数据超过 150 秒未更新或账号切换时，会清除旧数值并提示重试。重置、购买和管理操作继续由官方菜单处理。
 
 ## 安装
 
@@ -111,7 +113,7 @@ npx codex-ringside@latest install
 
 ## 自定义背景
 
-点击侧栏的圆环打开设置面板。先选来源，再用效果调外观，所有调节都立即生效。
+直接点击侧栏圆环打开原有背景设置面板，聚焦后按 Enter 或空格也可以打开。悬停面板中的“背景设置”、右键和 Shift+F10 仍可使用。官方用量菜单通过悬停面板中的“用量菜单”打开，也可以聚焦圆环后按向下键；没有兼容的官方按钮时，这个菜单入口隐藏。先选来源，再用效果调外观，所有调节都立即生效。
 
 面板顶部还能切换 Codex 的**外观模式**：跟随系统、浅色、深色。它和设置页的“模式”是同一个设置，改动会保存，并在两边同步。这里用的是 Codex 内部的设置函数，找不到时控件自动隐藏。
 
@@ -175,7 +177,7 @@ npx codex-ringside@latest install
 | [Unsplash](https://unsplash.com/wallpapers) | 摄影类高清壁纸，涵盖自然、旅行、动物等主题 |
 | [Pexels](https://www.pexels.com/search/desktop%20wallpaper/) | 摄影图库，提供桌面、4K 和深色壁纸等分类 |
 
-下载图片到本机后，点击侧栏圆环，在设置面板中选择 `image` 图片来源并选取文件。也可以先将图片设为 macOS 桌面壁纸，再选择 `wallpaper` 壁纸来源，让背景与桌面对齐。
+下载图片到本机后，点击侧栏圆环，在背景设置面板中选择 `image` 图片来源并选取文件。也可以先将图片设为 macOS 桌面壁纸，再选择 `wallpaper` 壁纸来源，让背景与桌面对齐。
 
 ## 查看状态
 
@@ -185,7 +187,7 @@ npx codex-ringside@latest install
 "$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
-重点看 `cdp.windows[].card.placed`。背景看 `background`（保存的设置）和 `cdp.windows[].background`：`applied` 表示已生效，`nativeGlass` 为 `false` 表示 Codex 此刻关闭了毛玻璃。输出可能包含本机路径，分享前请先脱敏。
+重点看 `cdp.windows[].card.placed`，`replacesNative` 为 `true` 表示已替换官方用量图标；`credits` 和 `plan` 显示当前余额和套餐。背景看 `background`（保存的设置）和 `cdp.windows[].background`：`applied` 表示已生效，`nativeGlass` 为 `false` 表示 Codex 此刻关闭了毛玻璃。输出可能包含本机路径，分享前请先脱敏。
 
 ## 卸载
 

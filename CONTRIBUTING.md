@@ -13,6 +13,8 @@ Tests cover allowance handling, background settings, startup guards, transaction
 
 Use `test/fixtures/card.html` with simulated data. Serve the checkout with `python3 -m http.server 4173 --bind 127.0.0.1`. Renderer scripts must remain self-contained, tolerate repeated injection, and clean up DOM nodes, observers, timers and object URLs on destruction.
 
+For usage-card changes, run `npx playwright install chromium` once, then `npm run test:card`. These browser tests use a local fixture and verify native-menu preservation, hover/settings interactions, keyboard controls, remounting, teardown and stale/credit-only data. Playwright is a development dependency and is not used by the installed add-on.
+
 Keep startup safeguards, loopback checks, privacy and migration behavior covered when changing them. Do not commit credentials, account fixtures, private logs, user backgrounds or compiled helpers. Add regression tests for behavior changes where they catch real failures. Preserve LICENSE and NOTICE in distributed copies.
 
 Submit focused PRs explaining the trigger, resulting behavior and validation. Propose new platforms or startup-model changes in an issue first. The maintainer reviews and merges changes; publication follows [RELEASING.md](docs/RELEASING.md).

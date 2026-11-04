@@ -102,3 +102,50 @@ test('unavailable keeps the ring layout but clears the numbers', () => {
   assert.deepEqual(value.rings, [{ label: '周', percent: null, tone: 'muted', resetsAt: null }]);
   assert.deepEqual(unavailable(null).rings, []);
 });
+
+test('credits use the Codex bucket, round like the native menu, and retain an exact numeric balance', () => {
+  const usage = formatUsage({ rateLimits: { credits: { balance: '999' } }, rateLimitsByLimitId: {
+    codex: { planType: 'pro', primary: week, credits: { hasCredits: true, unlimited: false, balance: '12345.6789000000' } }
+  } });
+  assert.equal(usage.plan, 'Pro');
+  assert.deepEqual(usage.credits, { unlimited: false, balance: 12345.6789, label: '12,346' });
+});
+
+test('credit-only, zero and unlimited accounts are usable without percentage windows', () => {
+  for (const [credits, label] of [[{ balance: 0 }, '0'], [{ balance: '0' }, '0'], [{ balance: '25' }, '25'], [{ unlimited: true }, '不限额']]) {
+    const usage = formatUsage({ rateLimits: { credits } });
+    assert.equal(usage.message, null);
+    assert.equal(usage.credits.label, label);
+    assert.deepEqual(usage.rings, []);
+  }
+});
+
+test('missing and invalid balances never imply zero credit', () => {
+  for (const balance of [null, undefined, '', ' ', false, [], {}, 'unknown', 'Infinity', -1, NaN]) {
+    assert.equal(formatUsage({ rateLimits: { credits: { balance } } }).credits, null);
+  }
+});
+
+test('credit deltas merge, explicit null clears, and a full read drops missing credit data', () => {
+  const current = { rateLimits: { primary: week, credits: { unlimited: false, hasCredits: true, balance: '100' } } };
+  const merged = mergeResponse(current, { rateLimits: { credits: { balance: '75' } } });
+  assert.deepEqual(merged.rateLimits.credits, { unlimited: false, hasCredits: true, balance: '75' });
+  assert.equal(formatUsage(mergeResponse(merged, { rateLimits: { credits: null } })).credits, null);
+  assert.equal(formatUsage(mergeResponse(null, { rateLimits: { primary: week } })).credits, null);
+});
+
+test('account and plan changes clear credit balances and reset cards', () => {
+  const current = { accountId: 'a', rateLimits: { planType: 'pro', credits: { balance: '100' } }, rateLimitResetCredits: { availableCount: 3 } };
+  for (const patch of [{ accountId: 'b', rateLimits: { planType: 'pro' } }, { rateLimits: { planType: 'plus' } }]) {
+    const usage = formatUsage(mergeResponse(current, patch));
+    assert.equal(usage.credits, null);
+    assert.equal(usage.note, null);
+  }
+});
+
+test('connection failure hides balances, plan and reset cards along with percentages', () => {
+  const value = unavailable(formatUsage({ rateLimits: { primary: week, planType: 'pro', credits: { balance: '100' } }, rateLimitResetCredits: { availableCount: 3 } }));
+  assert.equal(value.credits, null);
+  assert.equal(value.plan, null);
+  assert.equal(value.note, null);
+});

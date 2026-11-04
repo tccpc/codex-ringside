@@ -65,6 +65,7 @@ async function runAgent({ appPath, root, signal }) {
     seenAuth = stamp;
     log('account file changed, reconnecting');
     dropClient();
+    showUnavailable();
     nextRead = 0;
   }
 

@@ -4,7 +4,9 @@ English · [简体中文](README.zh-CN.md)
 
 Usage rings and customizable backgrounds for the Codex desktop sidebar on macOS.
 
-See your remaining allowance at a glance, hover for reset times, and click a ring to configure a wallpaper, image or glass background. Image controls include cropping, positioning, zoom, blur and color adjustments.
+Rings replace the native sidebar usage icon in place. Hover for your plan, remaining allowance, credit balance, reset times and reset cards; click to open the original background settings and configure a wallpaper, image or glass background. Image controls include cropping, positioning, zoom, blur and color adjustments. The hover details' usage-menu button preserves the native menu and its management actions.
+
+Credit balances are grouped and rounded to whole credits, including zero; unlimited balances are labeled explicitly, and missing balances are omitted. Credit-only accounts show a balance summary instead of a percentage ring. Account changes, connection failures and data older than 150 seconds clear old account values. On older clients without a compatible usage button, a separate ring opens background settings on click. Removing the add-on restores the native icon.
 
 **Unofficial community add-on. Not affiliated with or endorsed by OpenAI.** Parts are adapted from [Codex Usage Card](https://github.com/Lorie7813/codex-usage-card); see [NOTICE](NOTICE).
 
@@ -102,7 +104,7 @@ Reinstalling preserves observe mode; `--observe` explicitly disables startup han
 
 ## Background controls
 
-Click a ring to open settings. Panel changes apply immediately; CLI changes apply within five seconds.
+Click a ring, or press Enter or Space while focused, to open background settings. The hover details' background settings button, right-click and Shift+F10 also work. Open the native usage menu through the separate button in the hover details or ArrowDown while the ring is focused; this entry is hidden on clients without a compatible native usage button. Panel changes apply immediately; CLI changes apply within five seconds.
 
 | Source | Behavior |
 | --- | --- |
@@ -152,7 +154,7 @@ Download an image to your Mac, click a sidebar ring, then choose the `image` sou
 "$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
-Look for `agent: "running"`, `cdp.windows[].card.placed`, and `cdp.windows[].background.applied`. `nativeGlass: false` means the host disables native glass. `startup.event` explains skipped handoffs. Status may contain private paths and window URLs; redact it before sharing.
+Look for `agent: "running"`, `cdp.windows[].card.placed`, and `cdp.windows[].background.applied`. `card.replacesNative` confirms replacement of the native usage icon; `card.credits` and `card.plan` show current allowance details. `nativeGlass: false` means the host disables native glass. `startup.event` explains skipped handoffs. Status may contain private paths and window URLs; redact it before sharing.
 
 If no ring appears, verify the signed-in host, application path and whether port 39222 is occupied. Node and Command Line Tools checks apply only to npm/source installations. A missing release asset means that version does not contain a standalone bundle; use 0.2.0 or later. A checksum or download failure stops before changing the installed app; retry when the network is available. Installing while the host is open does not trigger a restart. Save your work and reopen its original icon when convenient. Check `~/Library/Logs/CodexRingside` for errors.
 

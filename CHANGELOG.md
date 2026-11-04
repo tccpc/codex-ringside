@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-11-03)
+
+- Replace the native sidebar usage icon with Ringside meters in place, preserving its usage menu, management actions and keyboard controls. Restore the native icon when the add-on is removed.
+- Show plan, credit balance (including zero/unlimited), reset times and reset cards in the hover details. Clear all account-specific values on expiry, disconnection and account changes.
+- Preserve the original background-settings action on ring click, Enter and Space, including interception of the native pointerdown menu. Keep the native usage menu under a separate hover-details action and ArrowDown; right-click and Shift+F10 still open background settings.
+- Add Chromium interaction coverage for native replacement, remounting, cleanup, menu actions, background settings and stale/credit-only states.
+
 ## 0.2.0 (2026-10-31)
 
 - Automatically check stable GitHub releases every six hours, verify and install newer standalone bundles, and retry failures after one hour. Preserve settings, back up and roll back failed updates without closing the desktop client.

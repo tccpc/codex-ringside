@@ -1,6 +1,6 @@
 {
   "name": "codex-ringside",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Usage rings and customizable backgrounds for the Codex desktop app. Unofficial macOS add-on.",
   "license": "MIT",
   "type": "commonjs",
@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.cjs",
+    "test:card": "node --test test/card.browser.cjs",
     "install-agent": "node bin/codex-ringside.cjs install",
     "uninstall-agent": "node bin/codex-ringside.cjs uninstall",
     "status": "node bin/codex-ringside.cjs status",
@@ -53,5 +54,8 @@
     "LICENSE",
     "NOTICE",
     "CHANGELOG.md"
-  ]
+  ],
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
 }

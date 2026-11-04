@@ -29,6 +29,11 @@ jobs:
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - run: npm run verify
+      - name: Verify usage-ring interactions in Chromium
+        if: matrix.os == 'macos-15' && matrix.node == '24'
+        run: |
+          npx playwright install chromium
+          npm run test:card
       - name: Build and verify standalone bundle without system Node or compiler
         if: matrix.node == '24'
         run: |

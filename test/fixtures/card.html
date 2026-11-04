@@ -25,6 +25,9 @@
   .item, .footer span { width: 28px; height: 28px; border-radius: 8px; background: #0000001a; display: block; }
   html.dark .item, html.dark .footer span { background: #ffffff1a; }
   .footer { display: flex; flex-direction: column; gap: 8px; }
+  #native-usage { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: inherit; }
+  #native-usage:hover { background: #8882; }
+  #native-menu { position: fixed; left: 64px; bottom: 20px; padding: 12px; background: #eee; color: #222; border: 1px solid #888; border-radius: 8px; z-index: 1000; }
   main { padding: 20px; }
   main button { margin: 2px; }
 </style>
@@ -33,19 +36,42 @@
 <div data-app-shell-page-surface>
   <nav data-app-navigation-rail>
     <div class="items"><div class="item"></div><div class="item"></div><div class="item"></div></div>
-    <div class="footer"><span></span><span></span></div>
+    <div class="footer"><button id="native-usage" type="button" aria-label="用量" aria-description="每周用量：剩余 20%" aria-haspopup="menu" aria-expanded="false"><span data-transition-phase="settled">◆</span></button><span></span></div>
   </nav>
   <div data-sidebar-navigation-root>侧栏</div>
   <main data-app-shell-main-surface>
-    <p>模拟的 Codex 侧栏。把鼠标移到圆环上看提示，点圆环打开背景面板。</p>
+    <p>模拟的 Codex 侧栏。点击圆环打开背景设置，悬停查看额度；悬停面板的“用量菜单”打开官方菜单。</p>
     <div id="states"></div>
     <div id="backgrounds"></div>
     <p><button id="theme">切换明暗</button> <button id="opaque">切换 electron-opaque</button> <button id="settings">切换设置页</button></p>
   </main>
 </div>
+<div id="native-menu" role="menu" hidden><button role="menuitem" id="manage-usage">管理用量</button></div>
 <script src="../../src/card.js"></script>
 <script src="../../src/background.js"></script>
 <script>
+  window.nativeOpens = 0;
+  window.managedUsage = false;
+  window.wireNativeUsage = button => {
+    const open = () => {
+      window.nativeOpens++;
+      button.setAttribute('aria-expanded', 'true');
+      document.getElementById('native-menu').hidden = false;
+    };
+    // Match the host's Radix trigger: opening happens on pointerdown, before click.
+    button.addEventListener('pointerdown', event => { if (event.button === 0 && !event.ctrlKey) open(); });
+    button.addEventListener('keydown', event => { if (['Enter', ' ', 'ArrowDown'].includes(event.key)) open(); });
+  };
+  window.wireNativeUsage(document.getElementById('native-usage'));
+  const closeMenu = () => {
+    document.getElementById('native-menu').hidden = true;
+    document.getElementById('native-usage')?.setAttribute('aria-expanded', 'false');
+  };
+  document.getElementById('manage-usage').onclick = () => { window.managedUsage = true; closeMenu(); };
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('#native-usage, #native-menu')) closeMenu();
+  });
   installCodexRingsideCard();
   installCodexRingsideBackground();
   const week = { label: '周', name: '每周额度', resetsAt: '11/5 07:54' };
@@ -53,16 +79,18 @@
   const fresh = { message: null, stale: false, updatedAt: Date.now() };
   const states = {
     loading: { rings: [], message: '正在读取 Codex 剩余额度', updatedAt: null },
-    single: { ...fresh, rings: [{ ...week, percent: 55, tone: 'normal' }], note: '重置卡：1 张可用' },
+    single: { ...fresh, rings: [{ ...week, percent: 20, tone: 'warning' }], plan: 'Pro', credits: { balance: 12345.6789, unlimited: false, label: '12,346' }, note: '重置卡：3 张可用' },
     dual: { ...fresh, rings: [{ ...five, percent: 80, tone: 'normal' }, { ...week, percent: 42, tone: 'warning' }] },
     low: { ...fresh, rings: [{ ...five, percent: 6, tone: 'danger' }, { ...week, percent: 100, tone: 'normal' }] },
     empty: { ...fresh, rings: [{ ...five, percent: 0, tone: 'danger' }] },
+    credits: { ...fresh, rings: [], plan: 'Pro', credits: { balance: 1250, unlimited: false, label: '1,250' } },
+    unlimited: { ...fresh, rings: [], credits: { balance: null, unlimited: true, label: '不限额' } },
     unavailable: {
       rings: [{ ...five, percent: null, tone: 'muted', resetsAt: null }, { ...week, percent: null, tone: 'muted', resetsAt: null }],
       message: '暂时无法读取 Codex 剩余额度，正在重试', stale: true
     }
   };
-  window.setState = name => window.__codexRingsideCard.update({ note: null, ...states[name] });
+  window.setState = name => window.__codexRingsideCard.update({ note: null, plan: null, credits: null, ...states[name] });
   for (const name of Object.keys(states)) {
     const button = document.createElement('button');
     button.textContent = name;

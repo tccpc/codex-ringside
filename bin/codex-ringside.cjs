@@ -90,7 +90,8 @@ async function status() {
     settings: readJson(settingsFile),
     update: fs.existsSync(settingsFile) ? updater.updateStatus(installDir) : null,
     background: new BackgroundStore({ root: installDir }).config,
-    startup: state && { event: state.event, updatedAt: new Date(state.updatedAt).toISOString() },
+    startup: state && { event: state.event, reason: state.reason, ageMs: state.ageMs,
+      inputIdleMs: state.inputIdleMs, updatedAt: new Date(state.updatedAt).toISOString() },
     listenAddresses: listeners(),
     cdp: await cardStatus()
   }, null, 2));

@@ -156,7 +156,7 @@ Download an image to your Mac, click a sidebar ring, then choose the `image` sou
 "$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
-Look for `agent: "running"`, `cdp.windows[].card.placed`, and `cdp.windows[].background.applied`. `card.replacesNative` confirms replacement of the native usage icon; `card.credits` and `card.plan` show current allowance details. `nativeGlass: false` means the host disables native glass. `startup.event` explains skipped handoffs. Status may contain private paths and window URLs; redact it before sharing.
+Look for `agent: "running"`, `cdp.windows[].card.placed`, and `cdp.windows[].background.applied`. `card.replacesNative` confirms replacement of the native usage icon; `card.credits` and `card.plan` show current allowance details. `nativeGlass: false` means the host disables native glass. `startup.event` and `startup.reason` explain pending or skipped handoffs; `ageMs` and `inputIdleMs` show process age and input idle time at that decision. Status may contain private paths and window URLs; redact it before sharing.
 
 If no ring appears, verify the signed-in host, application path and whether port 39222 is occupied. Node and Command Line Tools checks apply only to npm/source installations. A missing release asset means that version does not contain a standalone bundle; use 0.2.0 or later. A checksum or download failure stops before changing the installed app; retry when the network is available. Installing while the host is open does not trigger a restart. Save your work and reopen its original icon when convenient. Check `~/Library/Logs/CodexRingside` for errors.
 
@@ -164,7 +164,9 @@ Missing or expired allowance data is shown as unavailable. Account switches rese
 
 ## Startup safeguards
 
-Only a newly launched, single instance is considered: it must be in the foreground, at most eight seconds old, and have received no keyboard, click or scroll input since launch. Its command line must be known with no debug port, port 39222 must be free, and the previous attempt must be over 120 seconds old.
+Only a newly launched instance discovered within eight seconds is considered. Before handoff it must be the only instance, fully launched, in the foreground, and have received no keyboard, click or scroll input since launch. Its command line must be known with no debug port, port 39222 must be free, and the previous attempt must be over 120 seconds old.
+
+After a desktop update, temporary failures to read arguments, overlapping old/new processes, a retiring port listener, or a window still starting are retried until thirty seconds after launch. User input cancels that candidate permanently. The native helper checks process changes once per second to catch missed workspace launch notifications; unchanged state does not spawn additional snapshot processes. If startup is skipped or times out, save your work, quit with ⌘Q and reopen the original icon, waiting for the rings before interacting.
 
 An app already running when the agent starts is never handed off. Only normal system `terminate()` is used: refusal or a ten-second exit timeout ends the attempt. User activity during handoff prevents focus stealing. Normal startup can take a few extra seconds and show the window reopening once.
 

@@ -122,6 +122,15 @@ func open(_ appPath: String, _ configuration: NSWorkspace.OpenConfiguration, tim
 
 func watch(_ appPath: String) -> Never {
     let center = NSWorkspace.shared.notificationCenter
+    // Bundle replacement during an update can race workspace notifications. Check cheap AppKit
+    // process state as a fallback; do not spawn ps/snapshot processes while the app is unchanged.
+    func signature() -> [String] {
+        let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        return runningApps(appPath).map {
+            "\(processKey($0)):\($0.isFinishedLaunching):\($0.processIdentifier == frontmost)"
+        }.sorted()
+    }
+    var previous = signature()
     let names: [NSNotification.Name] = [
         NSWorkspace.didLaunchApplicationNotification,
         NSWorkspace.didTerminateApplicationNotification,
@@ -134,8 +143,14 @@ func watch(_ appPath: String) -> Never {
             emit(["event": name.rawValue, "pid": Int(app.processIdentifier)])
         }
     }
+    let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        let current = signature()
+        guard current != previous else { return }
+        previous = current
+        emit(["event": "process-state-changed"])
+    }
     emit(["event": "watching"])
-    withExtendedLifetime(tokens) { RunLoop.main.run() }
+    withExtendedLifetime((tokens, timer)) { RunLoop.main.run() }
     exit(0)
 }
 

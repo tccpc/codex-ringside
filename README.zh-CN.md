@@ -189,7 +189,7 @@ npx codex-ringside@latest install
 "$HOME/Library/Application Support/CodexRingside/bin/codex-ringside" status
 ```
 
-重点看 `cdp.windows[].card.placed`，`replacesNative` 为 `true` 表示已替换官方用量图标；`credits` 和 `plan` 显示当前余额和套餐。背景看 `background`（保存的设置）和 `cdp.windows[].background`：`applied` 表示已生效，`nativeGlass` 为 `false` 表示 Codex 此刻关闭了毛玻璃。输出可能包含本机路径，分享前请先脱敏。
+重点看 `cdp.windows[].card.placed`，`replacesNative` 为 `true` 表示已替换官方用量图标；`credits` 和 `plan` 显示当前余额和套餐。背景看 `background`（保存的设置）和 `cdp.windows[].background`：`applied` 表示已生效，`nativeGlass` 为 `false` 表示 Codex 此刻关闭了毛玻璃。`startup.reason` 会说明等待或跳过接管的具体原因，`ageMs` 和 `inputIdleMs` 分别是当时的进程年龄和输入空闲时间。输出可能包含本机路径，分享前请先脱敏。
 
 ## 卸载
 
@@ -204,13 +204,15 @@ npx codex-ringside@latest install
 下面的条件全部满足才会重启，否则只记录原因，不做任何动作：
 
 - 这是新进程，且只有一个实例，后台任务启动前就在运行的窗口永远不动
-- 启动不超过 8 秒，在前台，启动后没有按键、点击或滚动
+- 首次发现时启动不超过 8 秒；接管时已完成启动、在前台，启动后没有按键、点击或滚动
 - 进程参数里没有调试端口，且端口空闲
 - 距上次尝试超过 120 秒
 
 退出只用系统的 `terminate()`，从不强杀。Codex 拒绝退出或 10 秒内没退出就放弃。
 
-所以这些情况下本次不会出现圆环：打开后马上开始操作、登录时自动启动、Codex 已经开着时才安装、两分钟内连续重开。下次从原图标打开即可。原因记录在 `status` 的 `startup.event` 里。
+客户端更新重开时，参数暂时不可读、旧进程短暂重叠、端口尚未释放或窗口尚未就绪，都会继续等待，最长到该新进程启动后 30 秒。等待期间仍要求没有用户输入，且最终只剩一个前台实例。原生 helper 每秒检查一次进程变化，弥补更新替换应用时可能漏掉的启动通知；状态未变时不启动额外的快照进程。
+
+所以这些情况下本次不会出现圆环：打开后马上开始操作、登录时自动启动且一直在后台、Codex 已经开着时才安装、两分钟内连续重开，或启动等待超时。保存工作后用 ⌘Q 退出，再从原图标打开并等圆环出现。原因记录在 `status` 的 `startup.event` 和 `startup.reason` 里。
 
 ## 风险
 

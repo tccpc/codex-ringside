@@ -13,6 +13,7 @@ const snapshot = (apps, overrides = {}) => ({ apps, frontmostPid: 42, inputIdleM
 function harness(script, options = {}, adapterOverrides = {}) {
   const calls = [];
   const events = [];
+  const records = [];
   const queue = [...script];
   const clock = { now: NOW };
   const adapter = {
@@ -21,7 +22,7 @@ function harness(script, options = {}, adapterOverrides = {}) {
     quit: async () => { calls.push('quit'); return { accepted: true }; },
     launch: async () => { calls.push('launch'); return { launched: true, key: 'debug', pid: 43 }; },
     show: async () => { calls.push('show'); return { shown: true }; },
-    record: async event => { events.push(event); },
+    record: async (event, details) => { events.push(event); records.push({ event, ...details }); },
     ...adapterOverrides
   };
   const controller = new StartupController(adapter, {
@@ -29,7 +30,7 @@ function harness(script, options = {}, adapterOverrides = {}) {
     sleep: async ms => { clock.now += ms; },
     ...options
   });
-  return { adapter, calls, clock, controller, events };
+  return { adapter, calls, clock, controller, events, records };
 }
 
 async function baselined(script, options, adapterOverrides) {
@@ -118,10 +119,134 @@ test('the cooldown blocks a second attempt', async () => {
   assert.equal(events.at(-1), 'skipped-cooldown');
 });
 
-test('a busy port blocks the handoff', async () => {
-  const { calls, events } = await baselined([snapshot([app()])], {}, { portInUse: async () => true });
+test('a busy port defers the handoff while the old listener exits', async () => {
+  const { calls, controller, records } = await baselined([snapshot([app()])], {}, { portInUse: async () => true });
   assert.deepEqual(calls, []);
-  assert.equal(events.at(-1), 'port-in-use');
+  assert.equal(controller.pendingLaunch, true);
+  assert.equal(records.at(-1).reason, 'port-in-use');
+});
+
+test('temporarily unavailable arguments are retried and the replacement is handed off once', async () => {
+  const context = await baselined([snapshot([app({ argumentsKnown: false })]), ...eligible]);
+  assert.equal(context.controller.pendingLaunch, true);
+  assert.equal(context.records.at(-1).reason, 'arguments-unavailable');
+  await context.controller.tick();
+  assert.deepEqual(context.calls, ['quit', 'launch']);
+  await context.controller.tick();
+  assert.deepEqual(context.calls, ['quit', 'launch']);
+});
+
+test('a pending process revealed to have a debug port is left alone', async () => {
+  const context = await baselined([
+    snapshot([app({ argumentsKnown: false })]), snapshot([app({ debugPort: 39222 })])
+  ]);
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+  assert.equal(context.controller.pendingLaunch, false);
+  assert.equal(context.controller.waiting.size, 0);
+});
+
+test('a short overlap with the old process does not permanently reject its replacement', async () => {
+  const old = app({ key: 'old', pid: 41, launchedAt: NOW - 60000, debugPort: 39222 });
+  const context = harness([snapshot([old]), snapshot([old, app()]), ...eligible]);
+  await context.controller.tick();
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+  assert.equal(context.controller.pendingLaunch, true);
+  assert.equal(context.records.at(-1).reason, 'multiple-instances');
+  await context.controller.tick();
+  assert.deepEqual(context.calls, ['quit', 'launch']);
+});
+
+test('a listener left by the exiting client is retried until it releases the port', async () => {
+  let busy = true;
+  const context = await baselined([snapshot([app()]), ...eligible], {}, { portInUse: async () => busy });
+  assert.deepEqual(context.calls, []);
+  busy = false;
+  await context.controller.tick();
+  assert.deepEqual(context.calls, ['quit', 'launch']);
+});
+
+for (const pending of [
+  { app: { finishedLaunching: false }, snapshot: {} },
+  { app: {}, snapshot: { frontmostPid: 1 } },
+  { app: { argumentsKnown: false }, snapshot: {} }
+]) {
+  test(`a launch discovered promptly can finish after eight seconds: ${JSON.stringify(pending)}`, async () => {
+    const context = await baselined([
+      snapshot([app(pending.app)], pending.snapshot),
+      snapshot([app()], { inputIdleMs: 20000 }), ...eligible.slice(1)
+    ]);
+    context.clock.now += 10000;
+    await context.controller.tick();
+    assert.deepEqual(context.calls, ['quit', 'launch']);
+  });
+}
+
+test('user input while waiting permanently rejects the candidate', async () => {
+  const context = await baselined([
+    snapshot([app({ finishedLaunching: false })]),
+    snapshot([app()], { inputIdleMs: 100 }),
+    snapshot([app()], { inputIdleMs: 30000 })
+  ]);
+  context.clock.now += 10000;
+  await context.controller.tick();
+  assert.equal(context.records.at(-1).reason, 'user-input');
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+  assert.equal(context.controller.pendingLaunch, false);
+});
+
+test('waiting expires thirty seconds after launch, even with no input', async () => {
+  const context = await baselined([
+    snapshot([app({ finishedLaunching: false })]),
+    snapshot([app()], { inputIdleMs: 60000 })
+  ]);
+  context.clock.now += 28001;
+  await context.controller.tick();
+  assert.equal(context.records.at(-1).reason, 'launch-window-expired');
+  assert.equal(context.controller.pendingLaunch, false);
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+});
+
+test('a persistent port conflict times out without quitting', async () => {
+  const context = await baselined([snapshot([app()], { inputIdleMs: 60000 })], {}, { portInUse: async () => true });
+  context.clock.now += 28001;
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+  assert.equal(context.controller.pendingLaunch, false);
+  assert.equal(context.records.at(-1).reason, 'launch-window-expired');
+});
+
+test('persistent multiple instances time out without quitting either app', async () => {
+  const context = await baselined([snapshot([app(), app({ key: 'other', pid: 50 })], { inputIdleMs: 60000 })]);
+  context.clock.now += 28001;
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+  assert.equal(context.controller.pendingLaunch, false);
+});
+
+test('waiting is cleared if the launching app exits on its own', async () => {
+  const context = await baselined([snapshot([app({ finishedLaunching: false })]), snapshot([])]);
+  await context.controller.tick();
+  assert.equal(context.controller.pendingLaunch, false);
+  assert.equal(context.controller.waiting.size, 0);
+  assert.deepEqual(context.calls, []);
+});
+
+test('stopping the controller cancels a pending startup', async () => {
+  const context = await baselined([snapshot([app({ finishedLaunching: false })]), ...eligible]);
+  context.controller.stop();
+  await context.controller.tick();
+  assert.deepEqual(context.calls, []);
+});
+
+test('waiting diagnostics do not repeat on every poll', async () => {
+  const context = await baselined([snapshot([app({ finishedLaunching: false })])]);
+  await context.controller.tick();
+  await context.controller.tick();
+  assert.deepEqual(context.events, ['watching', 'waiting-for-launch']);
 });
 
 test('the receipt is written before the quit request', async () => {

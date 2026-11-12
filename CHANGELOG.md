@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 (2026-11-12)
+
+- Retry transient startup conditions after desktop updates: unavailable process arguments, overlapping old/new instances, a retiring debug listener, and slow foreground initialization. Discover candidates within eight seconds and wait up to thirty seconds from launch, retaining input, cooldown, existing-session and normal-quit safeguards.
+- Detect process changes in the native watcher even when workspace notifications are missed. Include waiting/skip reasons and timing in startup diagnostics.
+
 ## 0.3.1 (2026-11-03)
 
 - Bundle a wallpaper and background preset for fresh installations (cover, 134% zoom, top-left alignment, zero transparency and blur). Preserve existing images, edits and disabled backgrounds on upgrades, reinstalls and Codex Plus migrations.

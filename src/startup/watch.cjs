@@ -53,11 +53,12 @@ function startWatcher({ root, settings, log }) {
     show: (app, stamp, frontmost) => native('show', app.pid, app.key, stamp, frontmost),
     portInUse,
     async record(event, details = {}) {
-      state = { ...state, ...details, event, updatedAt: Date.now() };
+      // Keep the cooldown receipt, but do not show reasons left over from a previous event.
+      state = { lastAttemptAt: state.lastAttemptAt || 0, ...details, event, updatedAt: Date.now() };
       const temp = `${stateFile}.tmp`;
       fs.writeFileSync(temp, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
       fs.renameSync(temp, stateFile);
-      log(`startup: ${event}`);
+      log(`startup: ${event}${details.reason ? ` (${details.reason})` : ''}`);
     }
   };
 
@@ -87,7 +88,7 @@ function startWatcher({ root, settings, log }) {
     }
   }
 
-  // NSWorkspace notifications, so nothing spawns native processes while Codex is idle.
+  // The native watcher also checks for missed launch notifications without spawning idle snapshots.
   const observer = spawn(bridgePath, ['watch', settings.app], { stdio: ['ignore', 'pipe', 'ignore'] });
   const lines = readline.createInterface({ input: observer.stdout });
   lines.on('line', () => pump());

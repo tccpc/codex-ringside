@@ -2,6 +2,7 @@
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const MAX_LAUNCH_AGE_MS = 8000;
+const MAX_STARTUP_WAIT_MS = 30000;
 const QUIT_TIMEOUT_MS = 10000;
 
 // Decides whether a freshly opened Codex may be swapped for one with the debugging port.
@@ -11,6 +12,7 @@ class StartupController {
     Object.assign(this, { adapter, now, sleep, lastAttemptAt, cooldownMs });
     this.allowClientRestart = allowClientRestart === true;
     this.seen = new Set();
+    this.waiting = new Map();
     this.baselined = false;
     this.busy = false;
     this.stopped = false;
@@ -22,7 +24,20 @@ class StartupController {
   }
 
   remember(apps) {
-    for (const app of apps) this.seen.add(app.key);
+    for (const app of apps) {
+      this.seen.add(app.key);
+      this.waiting.delete(app.key);
+    }
+  }
+
+  async waitForLaunch(app, snapshot, reason) {
+    this.pendingLaunch = true;
+    if (this.waiting.get(app.key) === reason) return;
+    this.waiting.set(app.key, reason);
+    await this.adapter.record('waiting-for-launch', {
+      reason, processKey: app.key, ageMs: this.now() - app.launchedAt,
+      inputIdleMs: snapshot.inputIdleMs
+    });
   }
 
   async tick() {
@@ -54,40 +69,53 @@ class StartupController {
       return;
     }
 
+    const live = new Set(snapshot.apps.map(app => app.key));
+    for (const key of this.waiting.keys()) if (!live.has(key)) this.waiting.delete(key);
     const fresh = snapshot.apps.filter(app => !this.seen.has(app.key));
-    if (this.seen.size > 256) this.seen = new Set(snapshot.apps.map(app => app.key));
-    if (fresh.length !== 1 || snapshot.apps.length !== 1) {
-      this.remember(snapshot.apps);
+    if (this.seen.size > 256) this.seen = new Set([...this.seen].filter(key => live.has(key)));
+    const candidates = [];
+    for (const app of fresh) {
+      if (app.argumentsKnown && app.debugPort !== null) {
+        this.remember([app]);
+        continue;
+      }
+      const age = this.now() - app.launchedAt;
+      // Discover within eight seconds; a known, untouched launch can take longer after an update.
+      const maxAge = this.waiting.has(app.key) ? MAX_STARTUP_WAIT_MS : MAX_LAUNCH_AGE_MS;
+      const timely = age >= 0 && age <= maxAge;
+      if (!timely || !(snapshot.inputIdleMs >= age)) {
+        this.remember([app]);
+        await this.adapter.record('skipped-active-or-background', {
+          reason: timely ? 'user-input' : 'launch-window-expired', processKey: app.key,
+          ageMs: age, inputIdleMs: snapshot.inputIdleMs
+        });
+        continue;
+      }
+      candidates.push(app);
+    }
+    // Updaters can briefly overlap the exiting process with its replacement.
+    if (snapshot.apps.length !== 1) {
+      for (const app of candidates) await this.waitForLaunch(app, snapshot, 'multiple-instances');
       return;
     }
-
-    const app = fresh[0];
-    const age = this.now() - app.launchedAt;
-    if (!app.argumentsKnown || app.debugPort !== null) {
-      this.seen.add(app.key);
-      return;
-    }
-    const untouched = age >= 0 && age <= MAX_LAUNCH_AGE_MS && snapshot.inputIdleMs >= age;
-    // Never interrupt a partially initialized app; look again shortly.
-    if (untouched && (!app.finishedLaunching || snapshot.frontmostPid !== app.pid)) {
-      this.pendingLaunch = true;
-      return;
-    }
-
-    // Remember rejected candidates too, so a running window is never revisited later.
-    this.seen.add(app.key);
-    if (!untouched || snapshot.frontmostPid !== app.pid) {
-      await this.adapter.record('skipped-active-or-background');
+    const app = candidates[0];
+    if (!app) return;
+    if (!app.argumentsKnown || !app.finishedLaunching || snapshot.frontmostPid !== app.pid) {
+      await this.waitForLaunch(app, snapshot, !app.argumentsKnown ? 'arguments-unavailable'
+        : !app.finishedLaunching ? 'still-launching' : 'background');
       return;
     }
     if (this.lastAttemptAt && this.now() - this.lastAttemptAt < this.cooldownMs) {
+      this.remember([app]);
       await this.adapter.record('skipped-cooldown');
       return;
     }
     if (await this.adapter.portInUse()) {
-      await this.adapter.record('port-in-use');
+      await this.waitForLaunch(app, snapshot, 'port-in-use');
       return;
     }
+    // Remember attempted and rejected processes, so a running window is never revisited later.
+    this.remember([app]);
     await this.handoff(app, snapshot);
   }
 

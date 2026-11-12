@@ -15,7 +15,7 @@ jobs:
         include:
           - { os: macos-15, node: '22' }
           - { os: macos-15, node: '24' }
-          - { os: macos-15, node: '26' }
+          - { os: macos-26, node: '26' }
           - { os: macos-15-intel, node: '24' }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
